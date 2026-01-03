@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📱 出退勤アプリ（クラウド版）</title>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Yu Gothic', 'Meiryo', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 100px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .connection-status {
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .connection-status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .connection-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 18px;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-checkin {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-checkout {
+            background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+            color: white;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-icon {
+            font-size: 2rem;
+        }
+
+        .current-time {
+            text-align: center;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .current-time .time {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .current-time .date {
+            font-size: 1rem;
+            color: #666;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-align: center;
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .recent-records {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .record-item {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .record-item.checkout {
+            border-left-color: #ee0979;
+        }
+
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .record-type {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .record-type.checkin {
+            color: #11998e;
+        }
+
+        .record-type.checkout {
+            color: #ee0979;
+        }
+
+        .record-time {
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .record-details {
+            font-size: 0.9rem;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .setup-notice {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: #856404;
+        }
+
+        .setup-notice h3 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+
+        .setup-notice code {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .admin-link {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            color: #667eea;
+            padding: 12px 20px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .admin-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 出退勤アプリ</h1>
+            <p class="subtitle">クラウド同期版 - どこからでもアクセス</p>
+        </div>
+
+        <div class="connection-status disconnected" id="connectionStatus">
+            ⚠️ デモモード（設定が必要）
+        </div>
+
+        <div class="setup-notice" id="setupNotice">
+            <h3>🔧 初回セットアップが必要です</h3>
+            <p style="margin-bottom: 10px;">
+                Firebase設定を行うと、スマホとPC間でデータが自動同期されます。
+            </p>
+            <p style="font-size: 0.85rem; margin-bottom: 10px;">
+                現在はデモモードで動作しています。LocalStorageを使用します。
+            </p>
+            <button onclick="document.getElementById('setupGuide').style.display='block'; this.style.display='none'"
+                style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600;">
+                📖 セットアップガイドを表示
+            </button>
+        </div>
+
+        <div class="card" id="setupGuide" style="display: none;">
+            <h3 style="color: #667eea; margin-bottom: 15px;">Firebase セットアップ手順</h3>
+            <ol style="line-height: 2; padding-left: 20px;">
+                <li>Firebase Console (<a href="https://console.firebase.google.com"
+                        target="_blank">console.firebase.google.com</a>) にアクセス</li>
+                <li>「プロジェクトを追加」をクリック</li>
+                <li>プロジェクト名を入力（例: attendance-system）</li>
+                <li>左メニューから「Realtime Database」を選択</li>
+                <li>「データベースを作成」→「テストモードで開始」を選択</li>
+                <li>プロジェクト設定からFirebase configをコピー</li>
+                <li>このHTMLファイルの<code>firebaseConfig</code>部分に貼り付け</li>
+            </ol>
+            <p style="margin-top: 15px; font-size: 0.9rem; color: #666;">
+                ✅ 設定後、URLを従業員にメール送信するだけで使用開始できます！
+            </p>
+        </div>
+
+        <div class="current-time">
+            <div class="time" id="currentTime">--:--:--</div>
+            <div class="date" id="currentDate">----年--月--日</div>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="card">
+            <form id="attendanceForm">
+                <!-- 1. Location / Region (Moved to Top) -->
+                <div class="form-group">
+                    <label for="location">🏢 物件名・現場</label>
+
+                    <!-- Region Filter Button -->
+                    <div style="margin-bottom: 10px;">
+                        <button type="button" id="regionFilterBtn" class="btn-secondary"
+                            style="width: 100%; padding: 10px; background: #f0f2f5; color: #333; border: 1px solid #ccc; border-radius: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+                            <span>🌍 地区から絞り込み</span>
+                            <span id="currentRegionLabel" style="font-size: 0.8em; color: #666;">すべて</span>
+                        </button>
+                    </div>
+
+                    <select id="location" required onchange="onLocationChange()">
+                        <option value="">読み込み中...</option>
+                    </select>
+                </div>
+
+                <!-- 2. Employee Name (Moved Second) -->
+                <div class="form-group">
+                    <label for="employeeName">👤 氏名</label>
+                    <select id="employeeName" required>
+                        <option value="">先に物件を選択してください</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="customNameGroup" style="display: none;">
+                    <label for="customName">氏名を入力</label>
+                    <input type="text" id="customName" placeholder="氏名を入力">
+                </div>
+
+                <!-- 3. Time (Moved Third) -->
+                <div class="form-group">
+                    <label>⏰ 勤務時間</label>
+                    <select id="shiftTimeSelect" style="margin-bottom: 15px;" onchange="onShiftChange()">
+                        <option value="">先に物件を選択してください</option>
+                        <option value="custom">その他（手動入力）</option>
+                    </select>
+
+                    <div class="time-inputs" id="manualTimeInputs" style="display: none;">
+                        <div>
+                            <input type="text" id="startTime" placeholder="09:00" inputmode="tel">
+                            <small style="color: #666; display: block; margin-top: 5px;">開始時刻</small>
+                        </div>
+                        <div>
+                            <input type="text" id="endTime" placeholder="18:00" inputmode="tel">
+                            <small style="color: #666; display: block; margin-top: 5px;">終了時刻</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <button type="button" class="btn btn-checkin" id="checkinBtn">
+                        <span class="btn-icon">✓</span>
+                        <span>出勤</span>
+                    </button>
+                    <button type="button" class="btn btn-checkout" id="checkoutBtn">
+                        <span class="btn-icon">→</span>
+                        <span>退勤</span>
+                    </button>
+                    <button type="button" class="btn btn-paid" id="paidLeaveBtn"
+                        style="background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%); color: white;">
+                        <span class="btn-icon">🏖️</span>
+                        <span>有給</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 15px; color: #667eea;">📋 最近の記録</h3>
+            <div class="recent-records" id="recentRecords">
+                <p style="text-align: center; color: #999;">まだ記録がありません</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin link removed for security -->
+
+    </div>
+
+    <!-- Paid Leave Modal -->
+    <div id="paidLeaveModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div
+            style="background: white; width: 90%; max-width: 400px; border-radius: 20px; padding: 25px; animation: slideUp 0.3s ease;">
+            <h3 style="margin-bottom: 15px; text-align: center; color: #ff5e62;">🏖️ 有給休暇の申請</h3>
+
+            <p style="margin-bottom: 10px; font-weight: bold;">対象者: <span id="paidLeaveNameDisplay"></span></p>
+
+            <div class="form-group">
+                <label for="paidLeaveDate">日付を選択</label>
+                <input type="date" id="paidLeaveDate" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button type="button" onclick="closePaidLeaveModal()"
+                    style="padding: 12px; border: none; background: #f0f2f5; border-radius: 10px;">キャンセル</button>
+                <button type="button" onclick="submitPaidLeave()"
+                    style="padding: 12px; border: none; background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%); color: white; border-radius: 10px; font-weight: bold;">申請する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Region Selection Modal -->
+    <div id="regionModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div
+            style="background: white; width: 90%; max-width: 400px; border-radius: 20px; padding: 25px; animation: slideUp 0.3s ease;">
+            <h3 style="margin-bottom: 15px; text-align: center;">地区を選択</h3>
+            <div id="regionList"
+                style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+                <!-- JS generated -->
+            </div>
+            <button type="button" onclick="closeRegionModal()"
+                style="width: 100%; padding: 12px; border: none; background: #f0f2f5; border-radius: 10px;">閉じる</button>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration (要設定)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAaLwc-1WrcnUlwR4Ha7nDyuAQ9x_7eIBc",
+            authDomain: "attendance-app-8c5e6.firebaseapp.com",
+            databaseURL: "https://attendance-app-8c5e6-default-rtdb.firebaseio.com",
+            projectId: "attendance-app-8c5e6",
+            storageBucket: "attendance-app-8c5e6.firebasestorage.app",
+            messagingSenderId: "56686807938",
+            appId: "1:56686807938:web:78409d175c97923ee25d9b",
+            measurementId: "G-FZ3N925N8Z"
+        };
+
+        let database = null;
+        let useFirebase = false;
+        let employeeStats = {};
+        let systemSettings = {};
+
+        // Initialize Firebase
+        try {
+            if (firebaseConfig.apiKey) {
+                firebase.initializeApp(firebaseConfig);
+                database = firebase.database();
+                useFirebase = true;
+                document.getElementById('connectionStatus').className = 'connection-status connected';
+                document.getElementById('connectionStatus').textContent = '✓ クラウドに接続';
+                document.getElementById('setupNotice').style.display = 'none';
+            }
+        } catch (error) {
+            console.log('Firebase未設定 - LocalStorageモードで動作');
+        }
+
+        // --- Google Apps Script 連携設定 ---
+        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxLl_x_3e56t-V9c3FmaCSbe5XzcWFZFZqUnUZU3LxT78bQpnJcsGIoXhcD0W2pozqyCA/exec';
+
+        async function sendToGAS(record) {
+            if (!GOOGLE_APPS_SCRIPT_URL) return;
+
+            const dataToSend = {
+                action: 'add_record',
+                name: record.name,
+                date: record.date,
+                location: record.location,
+                startTime: record.startTime || '',
+                endTime: record.endTime || '',
+                type: record.type,
+                timestamp: record.timestamp
+            };
+
+            try {
+                await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // SIMPLE REQUEST
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(dataToSend)
+                });
+                console.log('GAS送信完了');
+            } catch (e) {
+                console.error('GAS送信エラー:', e);
+            }
+        }
+
+        // Update current time
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateStr = now.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+            document.getElementById('currentTime').textContent = timeStr;
+            document.getElementById('currentDate').textContent = dateStr;
+        }
+
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Employee and Custom Name Logic
+        const employeeNameSelect = document.getElementById('employeeName');
+        const customNameGroup = document.getElementById('customNameGroup');
+        const customName = document.getElementById('customName');
+
+        employeeNameSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'custom') {
+                customNameGroup.style.display = 'block';
+                customName.required = true;
+            } else {
+                customNameGroup.style.display = 'none';
+                customName.required = false;
+                customName.value = '';
+            }
+        });
+
+        // --- Dynamic Dropdown Logic ---
+
+        function onLocationChange() {
+            const siteId = document.getElementById('location').value;
+            const empSelect = document.getElementById('employeeName');
+            const shiftSelect = document.getElementById('shiftTimeSelect');
+
+            // Reset
+            empSelect.innerHTML = '<option value="">選択してください</option>';
+            shiftSelect.innerHTML = '<option value="">選択してください</option><option value="custom">その他（手動入力）</option>';
+
+            if (!siteId) {
+                empSelect.innerHTML = '<option value="">先に物件を選択してください</option>';
+                return;
+            }
+
+            const site = masterData.find(s => s.id == siteId);
+            if (!site) return;
+
+            // Populate Employees
+            if (site.employees && site.employees.length > 0) {
+                site.employees.forEach(emp => {
+                    const opt = document.createElement('option');
+                    opt.value = emp;
+                    opt.textContent = emp;
+                    empSelect.appendChild(opt);
+                });
+            } else {
+                const opt = document.createElement('option');
+                opt.textContent = "(登録された従業員がいません)";
+                opt.disabled = true;
+                empSelect.appendChild(opt);
+            }
+            // Always add custom option
+            const customOpt = document.createElement('option');
+            customOpt.value = 'custom';
+            customOpt.textContent = 'その他（手動入力）';
+            empSelect.appendChild(customOpt);
+
+            // Populate Shifts
+            if (site.shifts && site.shifts.length > 0) {
+                // Insert before 'custom'
+                const cust = shiftSelect.querySelector('option[value="custom"]');
+                site.shifts.forEach(shift => {
+                    const opt = document.createElement('option');
+                    opt.value = shift;
+                    opt.textContent = shift;
+                    shiftSelect.insertBefore(opt, cust);
+                });
+            }
+        }
+
+        function onShiftChange() {
+            const val = document.getElementById('shiftTimeSelect').value;
+            const manualInputs = document.getElementById('manualTimeInputs');
+            const startTime = document.getElementById('startTime');
+            const endTime = document.getElementById('endTime');
+
+            if (val === 'custom') {
+                manualInputs.style.display = 'grid';
+                startTime.required = true;
+                endTime.required = true;
+
+                // Pre-fill
+                const now = new Date();
+                const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                if (!startTime.value) startTime.value = currentTime;
+                if (!endTime.value) endTime.value = currentTime;
+
+            } else if (val) {
+                manualInputs.style.display = 'none';
+                startTime.required = false;
+                endTime.required = false;
+
+                // Robust parsing for "HH:mm-HH:mm" or "HH:mm~HH:mm" or "HH:mm～HH:mm"
+                // Split by any non-digit/colon characters
+                const parts = val.split(/[-~～]/);
+
+                if (parts.length >= 2) {
+                    const s = normalizeTime(parts[0].trim());
+                    const e = normalizeTime(parts[1].trim());
+                    if (s) startTime.value = s;
+                    if (e) endTime.value = e;
+                }
+            } else {
+                manualInputs.style.display = 'none';
+                // clear
+                startTime.value = '';
+                endTime.value = '';
+            }
+        }
+
+        // Helper to ensure HH:mm format
+        function normalizeTime(t) {
+            if (!t) return '';
+            const p = t.split(':');
+            if (p.length === 2) {
+                const h = p[0].padStart(2, '0');
+                const m = p[1].padStart(2, '0');
+                return `${h}:${m}`;
+            }
+            return t;
+        }
+
+        // --- Time Input Auto-formatting ---
+        function setupTimeFormat(inputId, nextId) {
+            const input = document.getElementById(inputId);
+            input.addEventListener('input', function (e) {
+                let val = e.target.value.replace(/\D/g, ''); // 数字のみ抽出
+                if (val.length > 4) val = val.slice(0, 4);
+
+                if (val.length > 2) {
+                    e.target.value = val.slice(0, 2) + ':' + val.slice(2);
+                } else {
+                    e.target.value = val;
+                }
+
+                // 4桁（HHmm）入力されたら次のフィールドへ
+                if (val.length === 4 && nextId) {
+                    document.getElementById(nextId).focus();
+                }
+            });
+
+            // バックスペースでコロンを消した時の挙動
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Backspace' && input.value.length === 3) {
+                    e.preventDefault();
+                    input.value = input.value.slice(0, 2);
+                }
+            });
+        }
+
+        setupTimeFormat('startTime', 'endTime');
+        setupTimeFormat('endTime', null);
+
+        // --- Paid Leave Logic ---
+        const paidLeaveModal = document.getElementById('paidLeaveModal');
+        const paidLeaveBtn = document.getElementById('paidLeaveBtn');
+
+        paidLeaveBtn.addEventListener('click', () => {
+            const empVal = document.getElementById('employeeName').value;
+            const custom = document.getElementById('customName').value;
+
+            // Validate Name presence as we need it for the record
+            if (!empVal || (empVal === 'custom' && !custom)) {
+                alert('誰の有給を申請しますか？\n先にリストから氏名を選択（または入力）してください。');
+                return;
+            }
+
+            const name = empVal === 'custom' ? custom : empVal;
+            document.getElementById('paidLeaveNameDisplay').textContent = name;
+
+            // Set default date to today (local time)
+            const d = new Date();
+            const localToday = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            document.getElementById('paidLeaveDate').value = localToday;
+
+            paidLeaveModal.style.display = 'flex';
+        });
+
+        window.closePaidLeaveModal = function () {
+            paidLeaveModal.style.display = 'none';
+        }
+
+        window.submitPaidLeave = async function () {
+            const date = document.getElementById('paidLeaveDate').value;
+            if (!date) return alert('日付を選択してください');
+
+            const empVal = document.getElementById('employeeName').value;
+            const name = empVal === 'custom' ? document.getElementById('customName').value : empVal;
+
+            if (!name) return alert('氏名が選択されていません');
+
+            // --- 週合計取得制限のチェック ---
+            const validation = await checkPaidLeaveLimitFrontend(name, date);
+            if (!validation.allowed) {
+                alert(`【制限超過】\n${name}さんは一週間の平均出勤日数が ${validation.limit} 日に設定されています。\n今週は既に ${validation.current} 日（出勤＋有給）の記録があるため、これ以上の有給取得はできません。\n\n詳細については担当者までお問い合わせください。`);
+                return;
+            }
+
+            // Get Location and Time from main form
+            const locationSelect = document.getElementById('location');
+            if (!locationSelect.value) return alert('物件を選択してください');
+
+            const siteName = locationSelect.options[locationSelect.selectedIndex].text;
+
+            // Get Time (requested by user)
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+
+            // Confirm
+            let confirmMsg = `${date}\n\nこの日付で${name}さんの有給休暇を申請します。\n`;
+            confirmMsg += `物件: ${siteName}\n`;
+            if (startTime && endTime) {
+                confirmMsg += `時間: ${startTime}～${endTime}\n`;
+            }
+            confirmMsg += `よろしいですか？`;
+
+            if (!confirm(confirmMsg)) return;
+
+            // Check conflict: Has worked on this day?
+            if (await hasConflict(name, date, ['checkin', 'checkout'])) {
+                alert('エラー: 同じ日に既に出勤・退勤記録があるため、有給は取得できません。');
+                return;
+            }
+
+            // Save Paid Leave
+            const record = {
+                id: Date.now(),
+                name: name,
+                date: date,
+                location: siteName, // Use selected property name
+                type: 'paid_leave',
+                startTime: startTime,
+                endTime: endTime,
+                timestamp: new Date().toISOString(),
+                recordedTime: new Date().toLocaleString('ja-JP')
+            };
+
+            await saveRecord(record);
+            closePaidLeaveModal();
+        }
+
+        /**
+         * 有給取得制限のフロントエンドチェック
+         */
+        async function checkPaidLeaveLimitFrontend(name, dateStr) {
+            name = (name || "").trim();
+            // 1. 週の範囲 (日〜土) を算出
+            // dateStr (YYYY-MM-DD) をローカル時間としてパース
+            const parts = dateStr.split('-').map(Number);
+            const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
+
+            const dayOfWeek = targetDate.getDay();
+            const sun = new Date(targetDate);
+            sun.setDate(targetDate.getDate() - dayOfWeek);
+            const sat = new Date(sun);
+            sat.setDate(sun.getDate() + 6);
+
+            const sunStr = sun.getFullYear() + '-' + String(sun.getMonth() + 1).padStart(2, '0') + '-' + String(sun.getDate()).padStart(2, '0');
+            const satStr = sat.getFullYear() + '-' + String(sat.getMonth() + 1).padStart(2, '0') + '-' + String(sat.getDate()).padStart(2, '0');
+
+            // 2. 制限値の取得
+            let isAuto = false;
+            if (systemSettings.startDate) {
+                const sParts = systemSettings.startDate.split('-').map(Number);
+                const start = new Date(sParts[0], sParts[1] - 1, sParts[2]);
+                const threeMonthsLater = new Date(start);
+                threeMonthsLater.setMonth(start.getMonth() + 3);
+                if (new Date() >= threeMonthsLater) isAuto = true;
+            }
+
+            const stats = employeeStats[name] || {};
+            const limit = isAuto
+                ? (stats.calculatedWeeklyAverage !== undefined ? stats.calculatedWeeklyAverage : stats.manualWeeklyAverage)
+                : stats.manualWeeklyAverage;
+
+            // 完全に未設定の場合は制限なしとする
+            if (limit === undefined || limit === null) return { allowed: true };
+
+            // 3. 今週の記録をカウント (同一日の複数現場出勤を1日と数えるためユニーク日を算出)
+            let uniqueDays = new Set();
+            if (useFirebase) {
+                try {
+                    const snapshot = await database.ref('attendance').orderByChild('date').startAt(sunStr).endAt(satStr).once('value');
+                    const val = snapshot.val();
+                    if (val) {
+                        Object.values(val).forEach(r => {
+                            if (r.name && r.name.trim() === name && (r.type === 'checkin' || r.type === 'paid_leave')) {
+                                uniqueDays.add(r.date);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Limit check error:", e);
+                }
+            }
+
+            const currentCount = uniqueDays.size;
+
+            return {
+                allowed: (currentCount + 1) <= limit,
+                limit: limit,
+                current: currentCount
+            };
+        }
+
+        // --- Conflict Check Helper ---
+        async function hasConflict(name, date, conflictTypes) {
+            if (useFirebase && database) {
+                // Ideally use query but for simplicity fetch date matching records
+                // Limitation: Rules might prevent index scan if not set up, but let's try ordering by date
+                try {
+                    const snapshot = await database.ref('attendance').orderByChild('date').equalTo(date).once('value');
+                    const val = snapshot.val();
+                    if (!val) return false;
+
+                    return Object.values(val).some(r =>
+                        r.name === name && conflictTypes.includes(r.type)
+                    );
+                } catch (e) {
+                    // Fallback or error - simplistic approach: assume no conflict or warn?
+                    // If index not set, it might fail.
+                    console.warn("Conflict check warning", e);
+                    return false;
+                }
+            } else {
+                // LocalStorage
+                const records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
+                return records.some(r =>
+                    r.name === name &&
+                    r.date === date &&
+                    conflictTypes.includes(r.type)
+                );
+            }
+        }
+
+        async function saveRecord(record) {
+            if (useFirebase && database) {
+                try {
+                    await database.ref('attendance/' + record.id).set(record);
+                    await sendToGAS(record); // GAS(スプレッドシート・メール通知)に自動送信
+                    showStatus('✓ 記録しました', 'success');
+                } catch (e) {
+                    showStatus('エラー: ' + e.message, 'error');
+                }
+            } else {
+                let records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
+                records.push(record);
+                localStorage.setItem('attendanceRecords', JSON.stringify(records));
+                await sendToGAS(record).catch(e => { }); // ローカルモードでもネットがあれば送信
+                showStatus('✓ 記録しました', 'success');
+                displayRecentRecords();
+            }
+        }
+
+        // Check-in/out buttons
+        document.getElementById('checkinBtn').addEventListener('click', () => recordAttendance('checkin'));
+        document.getElementById('checkoutBtn').addEventListener('click', () => recordAttendance('checkout'));
+
+        async function recordAttendance(type) {
+            const form = document.getElementById('attendanceForm');
+
+            // Validate manually because hidden inputs might mess up checkValidity
+            const location = document.getElementById('location').value;
+            const empVal = document.getElementById('employeeName').value;
+            const shiftVal = document.getElementById('shiftTimeSelect').value;
+
+            if (!location) return alert('物件を選択してください');
+            if (!empVal) return alert('氏名を選択してください');
+            if (empVal === 'custom' && !document.getElementById('customName').value) return alert('氏名を入力してください');
+            if (!shiftVal) return alert('勤務時間を選択してください');
+
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+
+            if (shiftVal === 'custom') {
+                if (!startTime) return alert('開始時刻を入力してください');
+                if (!endTime) return alert('終了時刻を入力してください');
+            } else if (shiftVal) {
+                if (!startTime && type === 'checkin') return alert('開始時刻を入力してください');
+            }
+
+            const name = empVal === 'custom' ? document.getElementById('customName').value : empVal;
+            const siteName = document.getElementById('location').options[document.getElementById('location').selectedIndex].text;
+
+            // --- Conflict Check: Paid Leave on same day? ---
+            const d = new Date();
+            const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            if (await hasConflict(name, today, ['paid_leave'])) {
+                alert('エラー: 本日は有給休暇が申請されているため、出勤・退勤は記録できません。');
+                return;
+            }
+            // -----------------------------------------------
+
+            // --- Confirmation Step ---
+            const typeText = type === 'checkin' ? '出勤' : '退勤';
+            let timeDisplay = '未設定';
+            if (startTime && endTime) {
+                timeDisplay = `${startTime} ～ ${endTime}`;
+            } else if (startTime) {
+                timeDisplay = `${startTime} ～`;
+            }
+
+            const confirmMsg = `以下の内容で「${typeText}」を記録します。\nよろしいですか？\n\n` +
+                `🏢 現場: ${siteName}\n` +
+                `👤 氏名: ${name}\n` +
+                `⏰ 時間: ${timeDisplay}`;
+
+            if (!confirm(confirmMsg)) return;
+            // -------------------------
+
+            const record = {
+                id: Date.now(),
+                name: name,
+                date: today,
+                location: siteName, // Log site Name
+                startTime: startTime,
+                endTime: endTime,
+                type: type,
+                timestamp: new Date().toISOString(),
+                recordedTime: new Date().toLocaleString('ja-JP')
+            };
+
+            await saveRecord(record);
+            resetForm();
+        }
+
+        function resetForm() {
+            // Reset selections but maybe keep location?
+            // For now reset all as per standard app behavior
+            document.getElementById('employeeName').value = '';
+            document.getElementById('shiftTimeSelect').value = '';
+            document.getElementById('customNameGroup').style.display = 'none';
+            document.getElementById('manualTimeInputs').style.display = 'none';
+            document.getElementById('startTime').value = '';
+            document.getElementById('endTime').value = '';
+        }
+
+        function displayRecentRecords() {
+            const container = document.getElementById('recentRecords');
+
+            if (useFirebase && database) {
+                database.ref('attendance').orderByChild('timestamp').limitToLast(10).once('value')
+                    .then(snapshot => {
+                        const records = [];
+                        snapshot.forEach(child => {
+                            records.push(child.val());
+                        });
+                        renderRecords(records.reverse());
+                    });
+            } else {
+                const records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
+                renderRecords(records.slice(-10).reverse());
+            }
+        }
+
+        function renderRecords(records) {
+            const container = document.getElementById('recentRecords');
+
+            if (records.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #999;">まだ記録がありません</p>';
+                return;
+            }
+
+            container.innerHTML = records.map(record => {
+                let typeLabel = '';
+                let typeClass = record.type;
+                if (record.type === 'checkin') typeLabel = '✓ 出勤';
+                else if (record.type === 'checkout') typeLabel = '→ 退勤';
+                else if (record.type === 'paid_leave') {
+                    typeLabel = '🏖️ 有給休暇';
+                    typeClass += ' paid'; // Add custom class for styling if needed
+                }
+
+                return `
+                <div class="record-item ${typeClass}" style="${record.type === 'paid_leave' ? 'border-left-color: #ff9966;' : ''}">
+                    <div class="record-header">
+                        <span class="record-type" style="${record.type === 'paid_leave' ? 'color: #ff5e62;' : ''}">
+                            ${typeLabel}
+                        </span>
+                        <span class="record-time">${record.recordedTime}</span>
+                    </div>
+                    <div class="record-details">
+                        <strong>${record.name}</strong> - ${record.location}<br>
+                        ${record.startTime && record.endTime ? `${record.startTime} ～ ${record.endTime}` : (record.type === 'paid_leave' ? `日付: ${record.date}` : `${record.startTime} ～ ${record.endTime}`)}
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type} show`;
+            setTimeout(() => statusDiv.classList.remove('show'), 3000);
+        }
+
+        // Initial display
+        displayRecentRecords();
+
+        // --- Load Master Data & Regions ---
+        let masterData = [];
+        let regions = {};
+
+        if (useFirebase && database) {
+            // Load Regions
+            database.ref('regions').on('value', (snapshot) => {
+                regions = snapshot.val() || {};
+                renderRegionModal();
+            });
+
+            // Load Master Data
+            database.ref('masterData').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    masterData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+                } else {
+                    masterData = [];
+                }
+                updateLocationSelect();
+            });
+
+            // Load Employee Stats
+            database.ref('employeeStats').on('value', (snapshot) => {
+                employeeStats = snapshot.val() || {};
+            });
+
+            // Load System Settings
+            database.ref('systemSettings').on('value', (snapshot) => {
+                systemSettings = snapshot.val() || {};
+            });
+        }
+
+        // Region UI Logic
+        const regionFilterBtn = document.getElementById('regionFilterBtn');
+        const regionModal = document.getElementById('regionModal');
+        let currentFilterRegion = null;
+
+        regionFilterBtn.addEventListener('click', () => {
+            regionModal.style.display = 'flex';
+        });
+
+        function closeRegionModal() {
+            regionModal.style.display = 'none';
+        }
+
+        function renderRegionModal() {
+            const container = document.getElementById('regionList');
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+            // Add "All" option
+            let html = `
+                <button onclick="applyRegionFilter(null)" style="grid-column: span 4; padding: 10px; background: #667eea; color: white; border: none; border-radius: 8px; margin-bottom: 5px;">
+                    すべて表示
+                </button>
+            `;
+
+            html += alphabet.map(char => {
+                const name = regions[char] || char;
+                // Only show if there are sites? Or always?
+                const hasSites = masterData.some(s => s.region === char);
+                // Optional: opacity if no sites
+                return `
+                    <button onclick="confirmRegion('${char}', '${name}')" style="padding: 10px; border: 1px solid #eee; background: white; border-radius: 8px; font-weight: bold;">
+                        ${char}
+                    </button>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        function confirmRegion(id, name) {
+            if (confirm(`${name} でよろしいですか？`)) {
+                applyRegionFilter(id);
+            }
+        }
+
+        function applyRegionFilter(id) {
+            currentFilterRegion = id;
+            document.getElementById('currentRegionLabel').textContent = id ? (regions[id] || id) : 'すべて';
+            updateLocationSelect();
+            closeRegionModal();
+        }
+
+        function updateLocationSelect() {
+            const select = document.getElementById('location');
+            const currentVal = select.value;
+
+            // Filter
+            let items = masterData;
+            if (currentFilterRegion) {
+                items = masterData.filter(s => s.region === currentFilterRegion);
+            }
+
+            if (items.length === 0) {
+                select.innerHTML = '<option value="">(選択可能な物件がありません)</option>';
+                return;
+            }
+
+            select.innerHTML = '<option value="">選択してください</option>' +
+                items.map(site => `<option value="${site.id}">${site.name}</option>`).join('');
+
+            // Try to restore value
+            // We use site.id as value now
+            if (currentVal && items.some(s => s.id === currentVal)) {
+                select.value = currentVal;
+            } else {
+                // If old value is invalid / empty, just leave as default
+            }
+
+            // Trigger change to populate employees even if empty
+            // But if we just loaded data, we might want to wait for user interaction?
+            // No, if there is a selected value (restored), we MUST populate.
+            if (select.value) {
+                onLocationChange();
+            } else {
+                // Clear children
+                document.getElementById('employeeName').innerHTML = '<option value="">先に物件を選択してください</option>';
+                document.getElementById('shiftTimeSelect').innerHTML = '<option value="">先に物件を選択してください</option>';
+            }
+        }
+
+        // Auto refresh if using Firebase
+        if (useFirebase && database) {
+            database.ref('attendance').on('child_added', displayRecentRecords);
+        }
+    </script>
+</body>
+
+</html>
