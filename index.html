@@ -499,7 +499,7 @@
             measurementId: "G-FZ3N925N8Z"
         };
 
-        // Google Apps Script連携設定
+        // Googleスプレッドシート連携設定 (v2.1 / 2026-01-09)
         const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwl5aPCqcJqT1XdnTZSjrGAnpAbFIeRSNLW4DjSXMzw22HyeLlPvluS24saXOuUpqXrFg/exec';
 
         let database = null;
@@ -693,100 +693,127 @@
         setupTimeFormat('startTime', 'endTime');
         setupTimeFormat('endTime', null);
 
-        // --- Paid Leave Logic ---
-        const paidLeaveModal = document.getElementById('paidLeaveModal');
-        const paidLeaveBtn = document.getElementById('paidLeaveBtn');
+        // Pre-fill current time for manual input
+        const d_now = new Date();
+        document.getElementById('startTime').value = `${String(d_now.getHours()).padStart(2, '0')}:${String(d_now.getMinutes()).padStart(2, '0')}`;
 
-        paidLeaveBtn.addEventListener('click', () => {
+        // Event Listeners for buttons
+        document.getElementById('checkinBtn').onclick = () => recordAttendance('checkin');
+        document.getElementById('checkoutBtn').onclick = () => recordAttendance('checkout');
+        document.getElementById('paidLeaveBtn').onclick = () => {
             const empVal = document.getElementById('employeeName').value;
             const custom = document.getElementById('customName').value;
-
-            // Validate Name presence as we need it for the record
             if (!empVal || (empVal === 'custom' && !custom)) {
-                alert('誰の有給を申請しますか？\n先にリストから氏名を選択（または入力）してください。');
+                alert('誰の有給を申請しますか？\n先に氏名を選択してください。');
                 return;
             }
-
             const name = empVal === 'custom' ? custom : empVal;
             document.getElementById('paidLeaveNameDisplay').textContent = name;
-
-            // Set default date to today (local time)
             const d = new Date();
             const localToday = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
             document.getElementById('paidLeaveDate').value = localToday;
+            document.getElementById('paidLeaveModal').style.display = 'flex';
+        };
 
-            paidLeaveModal.style.display = 'flex';
-        });
+        async function recordAttendance(type) {
+            const locationSelect = document.getElementById('location');
+            const siteId = locationSelect.value;
+            const empVal = document.getElementById('employeeName').value;
+            const shiftVal = document.getElementById('shiftTimeSelect').value;
+
+            if (!siteId) return alert('物件を選択してください');
+            if (!empVal) return alert('氏名を選択してください');
+            const name = empVal === 'custom' ? document.getElementById('customName').value : empVal;
+            if (!name) return alert('氏名を入力してください');
+            if (type !== 'paid_leave' && !shiftVal) return alert('勤務時間を選択してください');
+
+            const siteName = locationSelect.options[locationSelect.selectedIndex].text;
+
+            // Conflict Check
+            const now = new Date();
+            const localToday = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+
+            if (type !== 'paid_leave' && await hasConflict(name, localToday, ['paid_leave'])) {
+                alert('エラー: 本日は有給休暇が申請されているため、出勤・退勤は記録できません。');
+                return;
+            }
+
+            const typeText = type === 'checkin' ? '出勤' : '退勤';
+            if (!confirm(`${siteName}にて「${typeText}」を記録します。よろしいですか？`)) return;
+
+            // Show sending status
+            showStatus('送信中...', 'info');
+
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+
+            const record = {
+                id: Date.now(),
+                name: name,
+                date: localToday,
+                location: siteName,
+                startTime: startTime || '-',
+                endTime: endTime || '-',
+                type: type,
+                timestamp: now.toISOString(),
+                recordedTime: now.toLocaleString('ja-JP')
+            };
+
+            try {
+                await saveRecord(record);
+                if (GOOGLE_APPS_SCRIPT_URL) {
+                    const result = await callGAS(record);
+                    if (result && result.success === false) {
+                        alert('スプレッドシートへの記録に失敗しました: ' + result.message);
+                    }
+                }
+                resetForm();
+            } catch (e) {
+                showStatus('エラー: ' + e.message, 'error');
+            }
+        }
+
+        async function callGAS(payload) {
+            if (!GOOGLE_APPS_SCRIPT_URL) return { success: false, message: 'GAS URL is not set' };
+            try {
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error('Network response was not ok');
+                const result = await response.json();
+                if (result.limitExceeded) {
+                    showStatus(result.message || '【警告】上限を超えています', 'error');
+                }
+                return result;
+            } catch (e) {
+                console.warn("GAS callback issue:", e);
+                return { success: false, message: e.message };
+            }
+        }
 
         window.closePaidLeaveModal = function () {
             paidLeaveModal.style.display = 'none';
         }
 
-        window.submitPaidLeave = async function () {
-            const date = document.getElementById('paidLeaveDate').value;
-            if (!date) return alert('日付を選択してください');
-
-            const name = document.getElementById('paidLeaveNameDisplay').textContent;
-
-            // Confirm
-            if (!confirm(`${date}\n\nこの日付で${name}さんの有給休暇を申請します。\nよろしいですか？`)) return;
-
-            // Check conflict: Has worked on this day?
-            if (await hasConflict(name, date, ['checkin', 'checkout'])) {
-                alert('エラー: 同じ日に既に出勤・退勤記録があるため、有給は取得できません。');
-                return;
-            }
-
-            // Save Paid Leave
-            const record = {
-                id: Date.now(),
-                name: name,
-                date: date,
-                location: '有給休暇',
-                type: 'paid_leave',
-                timestamp: new Date().toISOString(),
-                recordedTime: new Date().toLocaleString('ja-JP')
-            };
-
-            // GASを先に呼び出して上限チェック
-            if (GOOGLE_APPS_SCRIPT_URL) {
-                showStatus('🔄 上限チェック中...', 'info');
-                try {
-                    const result = await callGAS(record);
-                    if (result && result.success === false) {
-                        alert(result.message || 'エラー: 有給取得の上限を超えています。管理者に問い合わせてください。');
-                        return;
-                    }
-                } catch (e) {
-                    console.error("Validation failed:", e);
-                    // 通信エラーなどの場合は、安全のため念のため警告を出すか継続するか
-                    // ユーザーの要望は「取得できないように」なので、エラー時は止めるのが安全
-                    alert('通信エラーなどによりチェックに失敗しました。時間をおいて再度お試しください。');
-                    return;
-                }
-            }
-
-            await saveRecord(record);
-
-            closePaidLeaveModal();
+        function normalizeName(name) {
+            if (!name) return "";
+            return name.toString().replace(/　/g, " ").trim();
         }
 
         // --- Conflict Check Helper ---
         async function hasConflict(name, date, conflictTypes) {
+            const normName = normalizeName(name);
             if (useFirebase && database) {
-                // Ideally use query but for simplicity fetch date matching records
-                // Limitation: Rules might prevent index scan if not set up, but let's try ordering by date
                 try {
                     const snapshot = await database.ref('attendance').orderByChild('date').equalTo(date).once('value');
                     const val = snapshot.val();
                     if (!val) return false;
 
                     return Object.values(val).some(r =>
-                        r.name === name && conflictTypes.includes(r.type)
+                        normalizeName(r.name) === normName && conflictTypes.includes(r.type)
                     );
                 } catch (e) {
-                    // Fallback or error - simplistic approach: assume no conflict or warn?
-                    // If index not set, it might fail.
                     console.warn("Conflict check warning", e);
                     return false;
                 }
@@ -794,7 +821,7 @@
                 // LocalStorage
                 const records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
                 return records.some(r =>
-                    r.name === name &&
+                    normalizeName(r.name) === normName &&
                     r.date === date &&
                     conflictTypes.includes(r.type)
                 );
@@ -818,91 +845,69 @@
             }
         }
 
-        // Check-in/out buttons
-        document.getElementById('checkinBtn').addEventListener('click', () => recordAttendance('checkin'));
-        document.getElementById('checkoutBtn').addEventListener('click', () => recordAttendance('checkout'));
+        window.submitPaidLeave = async function () {
+            const date = document.getElementById('paidLeaveDate').value;
+            if (!date) return alert('日付を選択してください');
 
-        async function recordAttendance(type) {
-            const form = document.getElementById('attendanceForm');
+            const locationSelect = document.getElementById('location');
+            const siteId = locationSelect.value;
+            if (!siteId) return alert('物件を選択してください');
+            const siteName = locationSelect.options[locationSelect.selectedIndex].text;
 
-            // Validate manually because hidden inputs might mess up checkValidity
-            const location = document.getElementById('location').value;
-            const empVal = document.getElementById('employeeName').value;
-            const shiftVal = document.getElementById('shiftTimeSelect').value;
+            const name = document.getElementById('paidLeaveNameDisplay').textContent;
 
-            if (!location) return alert('物件を選択してください');
-            if (!empVal) return alert('氏名を選択してください');
-            if (empVal === 'custom' && !document.getElementById('customName').value) return alert('氏名を入力してください');
-            if (!shiftVal) return alert('勤務時間を選択してください');
-
-            const startTime = document.getElementById('startTime').value;
-            const endTime = document.getElementById('endTime').value;
-
-            if (shiftVal === 'custom') {
-                if (!startTime) return alert('開始時刻を入力してください');
-                if (!endTime) return alert('終了時刻を入力してください');
-            } else if (shiftVal) {
-                if (!startTime && type === 'checkin') return alert('開始時刻を入力してください');
+            // 選択されたシフトがあればその時間を入れる
+            const shiftSelect = document.getElementById('shiftTimeSelect');
+            const shiftVal = shiftSelect.value;
+            let startTime = '-';
+            let endTime = '-';
+            if (shiftVal && shiftVal !== 'custom') {
+                const parts = shiftVal.split(/[-~～]/);
+                if (parts.length >= 2) {
+                    startTime = normalizeTime(parts[0].trim());
+                    endTime = normalizeTime(parts[1].trim());
+                }
             }
 
-            const name = empVal === 'custom' ? document.getElementById('customName').value : empVal;
-            const siteName = document.getElementById('location').options[document.getElementById('location').selectedIndex].text;
-
-            // --- Conflict Check: Paid Leave on same day? ---
-            const d = new Date();
-            const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-            if (await hasConflict(name, today, ['paid_leave'])) {
-                alert('エラー: 本日は有給休暇が申請されているため、出勤・退勤は記録できません。');
-                return;
-            }
-            // -----------------------------------------------
-
-            // --- Confirmation Step ---
-            const typeText = type === 'checkin' ? '出勤' : '退勤';
-            let timeDisplay = '未設定';
-            if (startTime && endTime) {
-                timeDisplay = `${startTime} ～ ${endTime}`;
-            } else if (startTime) {
-                timeDisplay = `${startTime} ～`;
-            }
-
-            const confirmMsg = `以下の内容で「${typeText}」を記録します。\nよろしいですか？\n\n` +
-                `🏢 現場: ${siteName}\n` +
-                `👤 氏名: ${name}\n` +
-                `⏰ 時間: ${timeDisplay}`;
-
-            if (!confirm(confirmMsg)) return;
-            // -------------------------
+            if (!confirm(`${siteName}にて\n${date}\nこの内容で有給休暇を申請します。よろしいですか？`)) return;
 
             const record = {
-                id: Date.now() + Math.random(), // Ensure unique ID
+                id: Date.now(),
                 name: name,
-                date: (function () { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
-                location: siteName, // Log site Name
-                startTime: normalizeTime(startTime),
-                endTime: normalizeTime(endTime),
-                type: type,
+                date: date,
+                location: siteName, // 有給休暇ではなく実際の物件名を入れる
+                startTime: startTime,
+                endTime: endTime,
+                type: 'paid_leave',
                 timestamp: new Date().toISOString(),
                 recordedTime: new Date().toLocaleString('ja-JP')
             };
 
-            // GASを先に呼び出して通知・上限チェック
+            // GASで先にバリデーションを行う
+            showStatus('判定中...', 'info');
             if (GOOGLE_APPS_SCRIPT_URL) {
                 try {
                     const result = await callGAS(record);
-                    if (result && result.limitExceeded) {
-                        alert(result.message || '【通知】週次上限を超えています。管理者に通知しました。');
+                    if (result && result.success === false) {
+                        // 上限超えなどのエラー
+                        alert(result.message || '有給取得上限を超えているため、申請できません。');
+                        showStatus(result.message || '上限超過のため申請不可', 'error');
+                        return; // ここで終了（保存しない）
                     }
                 } catch (e) {
-                    console.error("GAS notification failed:", e);
-                    // 出勤の場合は継続しても良いが、有給と合わせるならここで中断も検討
+                    console.error("GAS error:", e);
+                    // 通信エラーの場合はユーザーに判断を仰ぐか、安全のために止める
+                    if (!confirm("サーバーとの通信に失敗しました。上限チェックをスキップして強制的に申請しますか？")) {
+                        showStatus('通信エラーのため中断', 'error');
+                        return;
+                    }
                 }
             }
 
+            // 成功した場合のみFirebase/LocalStorageに保存
             await saveRecord(record);
-            resetForm();
-        }
-
+            closePaidLeaveModal();
+        };
         function resetForm() {
             // Reset selections but maybe keep location?
             // For now reset all as per standard app behavior
@@ -1089,24 +1094,6 @@
             }
         }
 
-        // Google Apps Script 呼び出しヘルパー
-        async function callGAS(payload) {
-            if (!GOOGLE_APPS_SCRIPT_URL) return;
-            try {
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-                const result = await response.json();
-                if (result.limitExceeded) {
-                    showStatus('【通知】有給取得上限を超えています。担当者に通知しました。', 'info');
-                }
-                return result;
-            } catch (e) {
-                console.error("GAS error:", e);
-                return { success: false, message: e.message };
-            }
-        }
 
         // Auto refresh if using Firebase
         if (useFirebase && database) {
