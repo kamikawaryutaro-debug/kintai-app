@@ -798,7 +798,16 @@
 
         function normalizeName(name) {
             if (!name) return "";
-            return name.toString().replace(/　/g, " ").trim();
+            // 全角スペースを半角に、連続するスペースを1つに、前後の空白を除去
+            return name.toString().replace(/　/g, " ").replace(/\s+/g, " ").trim();
+        }
+
+        /**
+         * 比較用に名前を正規化（全ての空白を除去し、英字は小文字化）
+         */
+        function canonicalize(str) {
+            if (!str) return "";
+            return str.toString().replace(/[\s　]+/g, "").toLowerCase();
         }
 
         // --- Conflict Check Helper ---
