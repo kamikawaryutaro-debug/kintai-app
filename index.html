@@ -5,12 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📱 出退勤アプリ（クラウド版）</title>
-
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-
+    <!-- Firebase SDK (Version 8 - Stable) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <style>
         * {
             margin: 0;
@@ -19,7 +17,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Yu Gothic', 'Meiryo', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
@@ -35,19 +33,6 @@
             text-align: center;
             color: white;
             margin-bottom: 30px;
-            animation: fadeIn 0.6s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         h1 {
@@ -67,19 +52,6 @@
             padding: 30px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             margin-bottom: 20px;
-            animation: slideUp 0.5s ease-out;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         .connection-status {
@@ -110,7 +82,6 @@
             font-weight: 600;
             color: #333;
             margin-bottom: 8px;
-            font-size: 0.95rem;
         }
 
         input,
@@ -120,26 +91,11 @@
             border: 2px solid #e0e0e0;
             border-radius: 10px;
             font-size: 1rem;
-            font-family: inherit;
-            transition: all 0.3s ease;
-        }
-
-        input:focus,
-        select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .time-inputs {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
         }
 
         .btn-group {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 15px;
             margin-top: 30px;
         }
@@ -151,50 +107,23 @@
             font-size: 1.1rem;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s ease;
+            color: white;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
 
         .btn-checkin {
             background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
         }
 
         .btn-checkout {
             background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
-            color: white;
         }
 
-        .btn:active {
-            transform: scale(0.98);
-        }
-
-        .btn-icon {
-            font-size: 2rem;
-        }
-
-        .current-time {
-            text-align: center;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-        }
-
-        .current-time .time {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #667eea;
-            margin-bottom: 5px;
-        }
-
-        .current-time .date {
-            font-size: 1rem;
-            color: #666;
+        .btn-paid {
+            background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%);
         }
 
         .status {
@@ -204,19 +133,16 @@
             font-weight: 600;
             text-align: center;
             display: none;
-            animation: fadeIn 0.3s ease-out;
         }
 
         .status.success {
             background: #d4edda;
             color: #155724;
-            border: 2px solid #c3e6cb;
         }
 
         .status.error {
             background: #f8d7da;
             color: #721c24;
-            border: 2px solid #f5c6cb;
         }
 
         .status.show {
@@ -229,89 +155,22 @@
         }
 
         .record-item {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            background: #f8f9fa;
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 10px;
             border-left: 4px solid #667eea;
         }
 
-        .record-item.checkout {
-            border-left-color: #ee0979;
+        .record-item.paid {
+            border-left-color: #ff9966;
         }
 
-        .record-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .record-type {
-            font-weight: 700;
-            font-size: 0.9rem;
-        }
-
-        .record-type.checkin {
-            color: #11998e;
-        }
-
-        .record-type.checkout {
-            color: #ee0979;
-        }
-
-        .record-time {
-            color: #666;
-            font-size: 0.85rem;
-        }
-
-        .record-details {
-            font-size: 0.9rem;
-            color: #333;
-            line-height: 1.5;
-        }
-
-        .setup-notice {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            color: #856404;
-        }
-
-        .setup-notice h3 {
-            margin-bottom: 10px;
-            color: #856404;
-        }
-
-        .setup-notice code {
-            background: rgba(0, 0, 0, 0.1);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.9rem;
-        }
-
-        .admin-link {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: white;
-            color: #667eea;
-            padding: 12px 20px;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 600;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .admin-link:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        .manual-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -320,261 +179,88 @@
     <div class="container">
         <div class="header">
             <h1>📱 出退勤アプリ</h1>
-            <p class="subtitle">クラウド同期版 - どこからでもアクセス</p>
+            <p class="subtitle">クラウド同期版</p>
         </div>
-
-        <div class="connection-status disconnected" id="connectionStatus">
-            ⚠️ デモモード（設定が必要）
-        </div>
-
-        <div class="setup-notice" id="setupNotice">
-            <h3>🔧 初回セットアップが必要です</h3>
-            <p style="margin-bottom: 10px;">
-                Firebase設定を行うと、スマホとPC間でデータが自動同期されます。
-            </p>
-            <p style="font-size: 0.85rem; margin-bottom: 10px;">
-                現在はデモモードで動作しています。LocalStorageを使用します。
-            </p>
-            <button onclick="document.getElementById('setupGuide').style.display='block'; this.style.display='none'"
-                style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600;">
-                📖 セットアップガイドを表示
-            </button>
-        </div>
-
-        <div class="card" id="setupGuide" style="display: none;">
-            <h3 style="color: #667eea; margin-bottom: 15px;">Firebase セットアップ手順</h3>
-            <ol style="line-height: 2; padding-left: 20px;">
-                <li>Firebase Console (<a href="https://console.firebase.google.com"
-                        target="_blank">console.firebase.google.com</a>) にアクセス</li>
-                <li>「プロジェクトを追加」をクリック</li>
-                <li>プロジェクト名を入力（例: attendance-system）</li>
-                <li>左メニューから「Realtime Database」を選択</li>
-                <li>「データベースを作成」→「テストモードで開始」を選択</li>
-                <li>プロジェクト設定からFirebase configをコピー</li>
-                <li>このHTMLファイルの<code>firebaseConfig</code>部分に貼り付け</li>
-            </ol>
-            <p style="margin-top: 15px; font-size: 0.9rem; color: #666;">
-                ✅ 設定後、URLを従業員にメール送信するだけで使用開始できます！
-            </p>
-        </div>
-
-        <div class="current-time">
-            <div class="time" id="currentTime">--:--:--</div>
-            <div class="date" id="currentDate">----年--月--日</div>
-        </div>
-
-        <div class="status" id="status"></div>
-
+        <div class="connection-status disconnected" id="connectionStatus">⚠️ 接続確認中...</div>
         <div class="card">
+            <h3 style="text-align: center; margin-bottom: 15px; color: #555;" id="currentTime">--:--:--</h3>
+            <div class="status" id="status"></div>
             <form id="attendanceForm">
-                <!-- 1. Location / Region (Moved to Top) -->
                 <div class="form-group">
-                    <label for="location">🏢 物件名・現場</label>
-
-                    <!-- Region Filter Button -->
-                    <div style="margin-bottom: 10px;">
-                        <button type="button" id="regionFilterBtn" class="btn-secondary"
-                            style="width: 100%; padding: 10px; background: #f0f2f5; color: #333; border: 1px solid #ccc; border-radius: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
-                            <span>🌍 地区から絞り込み</span>
-                            <span id="currentRegionLabel" style="font-size: 0.8em; color: #666;">すべて</span>
-                        </button>
-                    </div>
-
+                    <label>🏢 物件名・現場</label>
+                    <button type="button" id="regionFilterBtn"
+                        style="width:100%; padding:10px; margin-bottom:5px; background:#eee; border:none; border-radius:8px;">🌍
+                        地区で絞り込み</button>
                     <select id="location" required onchange="onLocationChange()">
                         <option value="">読み込み中...</option>
                     </select>
                 </div>
-
-                <!-- 2. Employee Name (Moved Second) -->
                 <div class="form-group">
-                    <label for="employeeName">👤 氏名</label>
+                    <label>👤 氏名</label>
                     <select id="employeeName" required>
                         <option value="">先に物件を選択してください</option>
                     </select>
                 </div>
-
-                <div class="form-group" id="customNameGroup" style="display: none;">
-                    <label for="customName">氏名を入力</label>
+                <!-- Custom Name -->
+                <div class="form-group" id="customNameGroup" style="display:none;">
                     <input type="text" id="customName" placeholder="氏名を入力">
                 </div>
-
-                <!-- 3. Time (Moved Third) -->
                 <div class="form-group">
                     <label>⏰ 勤務時間</label>
-                    <select id="shiftTimeSelect" style="margin-bottom: 15px;" onchange="onShiftChange()">
+                    <select id="shiftTimeSelect" onchange="onShiftChange()">
                         <option value="">先に物件を選択してください</option>
-                        <option value="custom">その他（手動入力）</option>
                     </select>
-
-                    <div class="time-inputs" id="manualTimeInputs" style="display: none;">
-                        <div>
-                            <input type="text" id="startTime" placeholder="09:00" inputmode="tel">
-                            <small style="color: #666; display: block; margin-top: 5px;">開始時刻</small>
-                        </div>
-                        <div>
-                            <input type="text" id="endTime" placeholder="18:00" inputmode="tel">
-                            <small style="color: #666; display: block; margin-top: 5px;">終了時刻</small>
-                        </div>
+                    <div class="manual-inputs" id="manualTimeInputs" style="display:none;">
+                        <input type="text" id="startTime" placeholder="開始 09:00">
+                        <input type="text" id="endTime" placeholder="終了 18:00">
                     </div>
                 </div>
-
-                <div class="btn-group" style="grid-template-columns: 1fr 1fr 1fr;">
-                    <button type="button" class="btn btn-checkin" id="checkinBtn">
-                        <span class="btn-icon">✓</span>
-                        <span>出勤</span>
-                    </button>
-                    <button type="button" class="btn btn-checkout" id="checkoutBtn">
-                        <span class="btn-icon">→</span>
-                        <span>退勤</span>
-                    </button>
-                    <button type="button" class="btn btn-paid" id="paidLeaveBtn"
-                        style="background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%); color: white;">
-                        <span class="btn-icon">🏖️</span>
-                        <span>有給</span>
-                    </button>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-checkin" id="checkinBtn"><span>✓</span>出勤</button>
+                    <button type="button" class="btn btn-checkout" id="checkoutBtn"><span>→</span>退勤</button>
+                    <button type="button" class="btn btn-paid" id="paidLeaveBtn"><span>🏖️</span>有給</button>
                 </div>
-                <!-- Alert for duplicate paid leave -->
                 <div id="paidLeaveAlert"
-                    style="display: none; color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 0.9rem; text-align: center;">
-                    ⚠️ 本日は既に他の物件で有給を取得済みです。
+                    style="display:none; margin-top:10px; color:red; text-align:center; font-weight:bold;">⚠️ 本日有給取得済み
                 </div>
             </form>
         </div>
-
-        <script>
-            // ... (previous scripts) ...
-
-            // Check if paid leave is already taken for the day
-            async function checkPaidLeaveEligibility() {
-                const empVal = document.getElementById('employeeName').value;
-                const custom = document.getElementById('customName').value;
-                let name = empVal === 'custom' ? custom : empVal;
-
-                const btn = document.getElementById('paidLeaveBtn');
-                const alertBox = document.getElementById('paidLeaveAlert');
-
-                if (!name) {
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                    alertBox.style.display = 'none';
-                    return;
-                }
-
-                // 名前の正規化（スペースをすべて削除して比較用にする）
-                // これにより "石黒真弓" と "石黒 真弓" を同一人物とみなす
-                // ただし、DB検索用には元の名前を使う必要があるが、
-                // hasConflict側で全件取得して正規化比較するロジックになっているか確認が必要。
-                // 既存の hasConflict は name をそのまま使ってフィルタリングしているため、
-                // ここでは hasConflict の呼び出し方を変えるのではなく、
-                // hasConflict 内部または新しいチェック関数で「正規化比較」を行うべき。
-                // 今回は安全のため、ここだけで完結する厳密なチェックロジックを実装します。
-
-                const d = new Date();
-                const localToday = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-
-                // 厳密な重複チェック（スペース無視）
-                const hasTaken = await checkDuplicateStrict(name, localToday);
-
-                if (hasTaken) {
-                    btn.disabled = true;
-                    btn.style.opacity = '0.5';
-                    btn.style.cursor = 'not-allowed';
-                    alertBox.style.display = 'block';
-                    alertBox.textContent = `⚠️ 本日、既に有給を取得済みです。`;
-                } else {
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                    btn.style.cursor = 'pointer';
-                    alertBox.style.display = 'none';
-                }
-            }
-
-            // 厳密な重複チェック関数（スペース無視）
-            async function checkDuplicateStrict(targetName, dateStr) {
-                if (!database || !useFirebase) return false; // オフライン時はチェック不可（またはローカルのみ）
-
-                const normalize = (n) => n ? n.replace(/[\s\u3000]+/g, '') : '';
-                const targetNorm = normalize(targetName);
-
-                try {
-                    const snapshot = await database.ref('attendance').once('value');
-                    const data = snapshot.val();
-                    if (!data) return false;
-
-                    for (const key in data) {
-                        const record = data[key];
-                        if (record.date === dateStr && record.type === 'paid_leave') {
-                            if (normalize(record.name) === targetNorm) {
-                                return true; // 重複あり
-                            }
-                        }
-                    }
-                    return false;
-                } catch (e) {
-                    console.error("Duplicate check error:", e);
-                    return false;
-                }
-            }
-
-            // Hook into name changes
-            document.getElementById('employeeName').addEventListener('change', checkPaidLeaveEligibility);
-            document.getElementById('customName').addEventListener('input', checkPaidLeaveEligibility);
-
-            // ... (rest of the script)
-        </script>
-
         <div class="card">
-            <h3 style="margin-bottom: 15px; color: #667eea;">📋 最近の記録</h3>
-            <div class="recent-records" id="recentRecords">
-                <p style="text-align: center; color: #999;">まだ記録がありません</p>
-            </div>
+            <h3>📋 最近の記録</h3>
+            <div class="recent-records" id="recentRecords"></div>
         </div>
     </div>
 
-    <!-- Admin link removed for security -->
-
-    </div>
-
-    <!-- Paid Leave Modal -->
-    <div id="paidLeaveModal"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-        <div
-            style="background: white; width: 90%; max-width: 400px; border-radius: 20px; padding: 25px; animation: slideUp 0.3s ease;">
-            <h3 style="margin-bottom: 15px; text-align: center; color: #ff5e62;">🏖️ 有給休暇の申請</h3>
-
-            <p style="margin-bottom: 10px; font-weight: bold;">対象者: <span id="paidLeaveNameDisplay"></span></p>
-
-            <div class="form-group">
-                <label for="paidLeaveDate">日付を選択</label>
-                <input type="date" id="paidLeaveDate" required>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <button type="button" onclick="closePaidLeaveModal()"
-                    style="padding: 12px; border: none; background: #f0f2f5; border-radius: 10px;">キャンセル</button>
-                <button type="button" onclick="submitPaidLeave()"
-                    style="padding: 12px; border: none; background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%); color: white; border-radius: 10px; font-weight: bold;">申請する</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Region Selection Modal -->
+    <!-- Modals -->
     <div id="regionModal"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-        <div
-            style="background: white; width: 90%; max-width: 400px; border-radius: 20px; padding: 25px; animation: slideUp 0.3s ease;">
-            <h3 style="margin-bottom: 15px; text-align: center;">地区を選択</h3>
-            <div id="regionList"
-                style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
-                <!-- JS generated -->
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:20px; border-radius:15px; width:90%; max-width:400px;">
+            <h3>地区を選択</h3>
+            <div id="regionList" style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:15px 0;">
             </div>
-            <button type="button" onclick="closeRegionModal()"
-                style="width: 100%; padding: 12px; border: none; background: #f0f2f5; border-radius: 10px;">閉じる</button>
+            <button onclick="document.getElementById('regionModal').style.display='none'"
+                style="width:100%; padding:10px;">閉じる</button>
+        </div>
+    </div>
+
+    <div id="paidLeaveModal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:20px; border-radius:15px; width:90%; max-width:400px;">
+            <h3 style="text-align:center; color:#ff5e62;">🏖️ 有給申請</h3>
+            <p id="paidLeaveNameDisplay" style="text-align:center; font-weight:bold; margin:10px 0;"></p>
+            <input type="date" id="paidLeaveDate"
+                style="width:100%; padding:10px; margin-bottom:15px; border-radius:8px; border:1px solid #ddd;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <button onclick="document.getElementById('paidLeaveModal').style.display='none'"
+                    style="padding:10px;">キャンセル</button>
+                <button onclick="submitPaidLeave()"
+                    style="padding:10px; background:#ff5e62; color:white; border:none; font-weight:bold; border-radius:5px;">申請</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Firebase Configuration (要設定)
+        // --- 設定エリア (あなたの新しいFirebase設定) ---
         const firebaseConfig = {
             apiKey: "AIzaSyAw1iVKGUXBAszbW4Va1HwdwZbjLeNTFIQ",
             authDomain: "attendance-system-12c02.firebaseapp.com",
@@ -585,656 +271,294 @@
             appId: "1:64755412792:web:988791ca6fe9151998dbcd",
             measurementId: "G-QY6PRHV8HJ"
         };
-
-        // Googleスプレッドシート連携設定 (v2.1 / 2026-01-09)
-        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwl5aPCqcJqT1XdnTZSjrGAnpAbFIeRSNLW4DjSXMzw22HyeLlPvluS24saXOuUpqXrFg/exec';
+        const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxLl_x_3e56t-V9c3FmaCSbe5XzcWFZFZqUnUZU3LxT78bQpnJcsGIoXhcD0W2pozqyCA/exec';
 
         let database = null;
-        let useFirebase = false;
+        let masterData = [];
+        let regions = {};
+        let currentFilterRegion = null;
 
-        // Initialize Firebase
+        // 初期化＆ログイン
         try {
-            if (firebaseConfig.apiKey) {
-                firebase.initializeApp(firebaseConfig);
-                useFirebase = true;
+            firebase.initializeApp(firebaseConfig);
+            firebase.auth().signInAnonymously().then(() => {
+                console.log('Logged in');
+                database = firebase.database();
+                updateConnectionStatus(true);
+                initDataListeners();
+            }).catch(e => {
+                console.error(e);
+                updateConnectionStatus(false, e.message);
+            });
+        } catch (e) { updateConnectionStatus(false, "設定エラー: " + e.message); }
 
-                // Enable Anonymous Auth and monitor auth state
-                firebase.auth().signInAnonymously()
-                    .then(() => {
-                        console.log("Logged in anonymously");
-                        // Auth successful, now initialize database and monitor connection
-                        database = firebase.database();
-                        updateConnectionStatus(true);
-
-                        // Monitor Realtime Database connection status
-                        const connectedRef = database.ref('.info/connected');
-                        connectedRef.on('value', (snap) => {
-                            if (snap.val() === true) {
-                                console.log("Firebase Realtime Database connected.");
-                                updateConnectionStatus(true);
-                            } else {
-                                console.log("Firebase Realtime Database disconnected.");
-                                updateConnectionStatus(false);
-                            }
-                        });
-                    })
-                    .catch((error) => {
-                        console.error("Auth Error", error);
-                        updateConnectionStatus(false);
-                        const statusDiv = document.getElementById('connectionStatus');
-                        statusDiv.textContent = `⚠️ 認証エラー: ${error.message} (Auth設定を確認してください)`;
-                    });
-
-                document.getElementById('setupNotice').style.display = 'none';
-            }
-        } catch (e) {
-            console.error("Firebase init error", e);
-            document.getElementById('connectionStatus').textContent = "設定エラー: " + e.message;
-            document.getElementById('setupNotice').style.display = 'block'; // Show setup notice on init error
+        function updateConnectionStatus(connected, msg) {
+            const el = document.getElementById('connectionStatus');
+            if (connected) { el.textContent = '✓ クラウド接続完了'; el.className = 'connection-status connected'; }
+            else { el.textContent = '⚠️ 接続エラー: ' + (msg || ''); el.className = 'connection-status disconnected'; }
         }
 
-        // Update current time
-        function updateTime() {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const dateStr = now.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-
-            document.getElementById('currentTime').textContent = timeStr;
-            document.getElementById('currentDate').textContent = dateStr;
+        function initDataListeners() {
+            database.ref('masterData').on('value', snap => {
+                const val = snap.val();
+                console.log("MasterData loaded:", val); // デバッグ用ログ
+                masterData = val ? Object.keys(val).map(k => ({ id: k, ...val[k] })) : [];
+                updateLocationSelect();
+            });
+            database.ref('regions').on('value', snap => {
+                regions = snap.val() || {};
+                renderRegionModal();
+            });
+            database.ref('attendance').limitToLast(10).on('child_added', () => displayRecentRecords());
         }
-
-        updateTime();
-        setInterval(updateTime, 1000);
-
-        // Employee and Custom Name Logic
-        const employeeNameSelect = document.getElementById('employeeName');
-        const customNameGroup = document.getElementById('customNameGroup');
-        const customName = document.getElementById('customName');
-
-        employeeNameSelect.addEventListener('change', (e) => {
-            if (e.target.value === 'custom') {
-                customNameGroup.style.display = 'block';
-                customName.required = true;
-            } else {
-                customNameGroup.style.display = 'none';
-                customName.required = false;
-                customName.value = '';
-            }
-        });
-
-        // --- Dynamic Dropdown Logic ---
 
         function onLocationChange() {
             const siteId = document.getElementById('location').value;
             const empSelect = document.getElementById('employeeName');
             const shiftSelect = document.getElementById('shiftTimeSelect');
-
-            // Reset
             empSelect.innerHTML = '<option value="">選択してください</option>';
             shiftSelect.innerHTML = '<option value="">選択してください</option><option value="custom">その他（手動入力）</option>';
 
-            if (!siteId) {
-                empSelect.innerHTML = '<option value="">先に物件を選択してください</option>';
-                return;
-            }
-
+            if (!siteId) return;
             const site = masterData.find(s => s.id == siteId);
-            if (!site) return;
-
-            // Populate Employees
-            if (site.employees && site.employees.length > 0) {
-                site.employees.forEach(emp => {
-                    const opt = document.createElement('option');
-                    opt.value = emp;
-                    opt.textContent = emp;
-                    empSelect.appendChild(opt);
+            if (site && site.employees) {
+                site.employees.forEach(e => {
+                    const opt = document.createElement('option'); opt.value = e; opt.textContent = e; empSelect.appendChild(opt);
                 });
-            } else {
-                const opt = document.createElement('option');
-                opt.textContent = "(登録された従業員がいません)";
-                opt.disabled = true;
-                empSelect.appendChild(opt);
             }
-            // Always add custom option
-            const customOpt = document.createElement('option');
-            customOpt.value = 'custom';
-            customOpt.textContent = 'その他（手動入力）';
-            empSelect.appendChild(customOpt);
+            const custOpt = document.createElement('option'); custOpt.value = 'custom'; custOpt.textContent = 'その他（手動入力）'; empSelect.appendChild(custOpt);
 
-            // Populate Shifts
-            if (site.shifts && site.shifts.length > 0) {
-                // Insert before 'custom'
-                const cust = shiftSelect.querySelector('option[value="custom"]');
-                site.shifts.forEach(shift => {
-                    const opt = document.createElement('option');
-                    opt.value = shift;
-                    opt.textContent = shift;
-                    shiftSelect.insertBefore(opt, cust);
+            if (site && site.shifts) {
+                const customOpt = shiftSelect.querySelector('option[value="custom"]');
+                site.shifts.forEach(s => {
+                    const opt = document.createElement('option'); opt.value = s; opt.textContent = s; shiftSelect.insertBefore(opt, customOpt);
                 });
             }
         }
 
-        function onShiftChange() {
-            const val = document.getElementById('shiftTimeSelect').value;
-            const manualInputs = document.getElementById('manualTimeInputs');
-            const startTime = document.getElementById('startTime');
-            const endTime = document.getElementById('endTime');
+        function updateLocationSelect() {
+            const select = document.getElementById('location');
+            const cur = select.value;
+            let list = currentFilterRegion ? masterData.filter(s => s.region === currentFilterRegion) : masterData;
 
-            if (val === 'custom') {
-                manualInputs.style.display = 'grid';
-                startTime.required = true;
-                endTime.required = true;
+            if (list.length === 0) select.innerHTML = '<option value="">(物件がありません)</option>';
+            else select.innerHTML = '<option value="">選択してください</option>' + list.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
-                // Pre-fill
-                const now = new Date();
-                const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                if (!startTime.value) startTime.value = currentTime;
-                if (!endTime.value) endTime.value = currentTime;
-
-            } else if (val) {
-                manualInputs.style.display = 'none';
-                startTime.required = false;
-                endTime.required = false;
-
-                // Robust parsing for "HH:mm-HH:mm" or "HH:mm~HH:mm" or "HH:mm～HH:mm"
-                // Split by any non-digit/colon characters
-                const parts = val.split(/[-~～]/);
-
-                if (parts.length >= 2) {
-                    const s = normalizeTime(parts[0].trim());
-                    const e = normalizeTime(parts[1].trim());
-                    if (s) startTime.value = s;
-                    if (e) endTime.value = e;
-                }
-            } else {
-                manualInputs.style.display = 'none';
-                // clear
-                startTime.value = '';
-                endTime.value = '';
-            }
+            if (cur && list.some(s => s.id === cur)) select.value = cur;
         }
 
-        // Helper to ensure HH:mm format
-        function normalizeTime(t) {
-            if (!t) return '';
-            const p = t.split(':');
-            if (p.length === 2) {
-                const h = p[0].padStart(2, '0');
-                const m = p[1].padStart(2, '0');
-                return `${h}:${m}`;
-            }
-            return t;
+        document.getElementById('regionFilterBtn').onclick = () => document.getElementById('regionModal').style.display = 'flex';
+        function renderRegionModal() {
+            const box = document.getElementById('regionList');
+            const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            box.innerHTML = `<button onclick="applyRegion(null)" style="grid-column:1/-1; padding:8px; background:#667eea; color:white; border:none; border-radius:5px;">すべて表示</button>` +
+                abc.map(c => `<button onclick="confirmRegion('${c}')" style="padding:8px; background:white; border:1px solid #ddd;">${c}</button>`).join('');
+        }
+        function confirmRegion(id) {
+            const name = regions[id] || id;
+            if (confirm(`${name} で絞り込みますか？`)) { applyRegion(id); }
+        }
+        function applyRegion(id) {
+            currentFilterRegion = id;
+            document.getElementById('regionFilterBtn').textContent = id ? `🌍 地区: ${regions[id] || id}` : '🌍 地区で絞り込み';
+            updateLocationSelect();
+            document.getElementById('regionModal').style.display = 'none';
         }
 
-        // --- Time Input Auto-formatting ---
-        function setupTimeFormat(inputId, nextId) {
-            const input = document.getElementById(inputId);
-            input.addEventListener('input', function (e) {
-                let val = e.target.value.replace(/\D/g, ''); // 数字のみ抽出
-                if (val.length > 4) val = val.slice(0, 4);
+        setInterval(() => {
+            document.getElementById('currentTime').textContent = new Date().toLocaleTimeString('ja-JP');
+        }, 1000);
 
-                if (val.length > 2) {
-                    e.target.value = val.slice(0, 2) + ':' + val.slice(2);
-                } else {
-                    e.target.value = val;
-                }
-
-                // 4桁（HHmm）入力されたら次のフィールドへ
-                if (val.length === 4 && nextId) {
-                    document.getElementById(nextId).focus();
-                }
-            });
-
-            // バックスペースでコロンを消した時の挙動
-            input.addEventListener('keydown', function (e) {
-                if (e.key === 'Backspace' && input.value.length === 3) {
-                    e.preventDefault();
-                    input.value = input.value.slice(0, 2);
-                }
-            });
-        }
-
-        setupTimeFormat('startTime', 'endTime');
-        setupTimeFormat('endTime', null);
-
-        // Pre-fill current time for manual input
-        function fillCurrentTime() {
-            const now = new Date();
-            const h = String(now.getHours()).padStart(2, '0');
-            const m = String(now.getMinutes()).padStart(2, '0');
-            return `${h}:${m}`;
-        }
-
-        // Update connection status helper
-        function updateConnectionStatus(connected) {
-            const statusDiv = document.getElementById('connectionStatus');
-            if (connected) {
-                statusDiv.textContent = '✓ クラウドに接続完了';
-                statusDiv.className = 'connection-status connected';
-            } else {
-                statusDiv.textContent = '⚠️ 接続していません（設定を確認してください）';
-                statusDiv.className = 'connection-status disconnected';
-            }
-        }
-
-        // --- Event Listeners for Attendance ---
-        document.getElementById('checkinBtn').addEventListener('click', () => recordAttendance('checkin'));
-        document.getElementById('checkoutBtn').addEventListener('click', () => recordAttendance('checkout'));
-
-        // Paid Leave Flow
-        document.getElementById('paidLeaveBtn').addEventListener('click', () => {
-            const empVal = document.getElementById('employeeName').value;
-            const custom = document.getElementById('customName').value;
-            const name = empVal === 'custom' ? custom : empVal;
-
-            if (!name) {
-                alert('氏名を選択してください');
-                return;
-            }
-
-            openPaidLeaveModal(name);
-        });
-
-        window.openPaidLeaveModal = function (name) {
-            document.getElementById('paidLeaveNameDisplay').textContent = name;
-            const d = new Date();
-            const localToday = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-            document.getElementById('paidLeaveDate').value = localToday;
-            document.getElementById('paidLeaveModal').style.display = 'flex';
+        document.getElementById('employeeName').onchange = (e) => {
+            document.getElementById('customNameGroup').style.display = e.target.value === 'custom' ? 'block' : 'none';
+            checkPaidLeave();
         };
+        document.getElementById('customName').oninput = checkPaidLeave;
 
-        async function recordAttendance(type) {
-            const locationSelect = document.getElementById('location');
-            const siteId = locationSelect.value;
-            const empVal = document.getElementById('employeeName').value;
-            const shiftVal = document.getElementById('shiftTimeSelect').value;
-
-            if (!siteId) return alert('物件を選択してください');
-            if (!empVal) return alert('氏名を選択してください');
-            const name = empVal === 'custom' ? document.getElementById('customName').value : empVal;
-            if (!name) return alert('氏名を入力してください');
-            if (type !== 'paid_leave' && !shiftVal) return alert('勤務時間を選択してください');
-
-            const siteName = locationSelect.options[locationSelect.selectedIndex].text;
-
-            // Conflict Check
-            const now = new Date();
-            const localToday = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-
-            if (type !== 'paid_leave' && await hasConflict(name, localToday, ['paid_leave'])) {
-                alert('エラー: 本日は有給休暇が申請されているため、出勤・退勤は記録できません。');
-                return;
-            }
-
-            const typeText = type === 'checkin' ? '出勤' : '退勤';
-            if (!confirm(`${siteName}にて「${typeText}」を記録します。よろしいですか？`)) return;
-
-            // Show sending status
-            showStatus('送信中...', 'info');
-
-            const startTime = document.getElementById('startTime').value;
-            const endTime = document.getElementById('endTime').value;
-
-            const record = {
-                id: Date.now(),
-                name: name,
-                date: localToday,
-                location: siteName,
-                startTime: startTime || '-',
-                endTime: endTime || '-',
-                type: type,
-                timestamp: now.toISOString(),
-                recordedTime: now.toLocaleString('ja-JP')
-            };
-
-            try {
-                await saveRecord(record);
-                if (GOOGLE_APPS_SCRIPT_URL) {
-                    const result = await callGAS(record);
-                    if (result && result.success === false) {
-                        alert('スプレッドシートへの記録に失敗しました: ' + result.message);
+        document.getElementById('shiftTimeSelect').onchange = (e) => {
+            const manual = document.getElementById('manualTimeInputs');
+            const val = e.target.value;
+            if (val === 'custom') {
+                manual.style.display = 'grid';
+            } else {
+                manual.style.display = 'none';
+                if (val) {
+                    const parts = val.split(/[～~-]/);
+                    if (parts.length >= 2) {
+                        document.getElementById('startTime').value = parts[0].trim();
+                        document.getElementById('endTime').value = parts[1].trim();
                     }
                 }
-                resetForm();
-            } catch (e) {
-                showStatus('エラー: ' + e.message, 'error');
             }
+        };
+
+        document.getElementById('checkinBtn').onclick = () => record('checkin');
+        document.getElementById('checkoutBtn').onclick = () => record('checkout');
+        document.getElementById('paidLeaveBtn').onclick = () => {
+            const name = getName();
+            if (!name) return alert('氏名を選択してください');
+            document.getElementById('paidLeaveNameDisplay').textContent = name;
+            document.getElementById('paidLeaveDate').value = new Date().toISOString().slice(0, 10);
+            document.getElementById('paidLeaveModal').style.display = 'flex';
         }
 
-        async function callGAS(payload) {
-            if (!GOOGLE_APPS_SCRIPT_URL) return { success: false, message: 'GAS URL is not set' };
-            try {
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) throw new Error('Network response was not ok');
-                const result = await response.json();
-                if (result.limitExceeded) {
-                    showStatus(result.message || '【警告】上限を超えています', 'error');
-                }
-                return result;
-            } catch (e) {
-                console.warn("GAS callback issue:", e);
-                return { success: false, message: e.message };
+        function getName() {
+            const val = document.getElementById('employeeName').value;
+            return val === 'custom' ? document.getElementById('customName').value : val;
+        }
+
+        async function record(type) {
+            const siteId = document.getElementById('location').value;
+            if (!siteId) return alert('物件を選んでください');
+            const name = getName();
+            if (!name) return alert('氏名が必要です');
+            const shift = document.getElementById('shiftTimeSelect').value;
+            if (type !== 'paid_leave' && !shift) return alert('時間を選んでください');
+
+            const today = new Date().toISOString().slice(0, 10);
+            if (type !== 'paid_leave' && await hasConflict(name, today, ['paid_leave'])) {
+                return alert('本日は有給のため出勤できません');
             }
+
+            const siteName = document.getElementById('location').options[document.getElementById('location').selectedIndex].text;
+            if (!confirm(`${siteName} で ${type === 'checkin' ? '出勤' : '退勤'} しますか？`)) return;
+
+            const data = {
+                id: Date.now(),
+                name: name,
+                date: today,
+                location: siteName,
+                startTime: document.getElementById('startTime').value || '-',
+                endTime: document.getElementById('endTime').value || '-',
+                type: type,
+                timestamp: new Date().toISOString(),
+                recordedTime: new Date().toLocaleString('ja-JP')
+            };
+
+            send(data);
         }
 
-        window.closePaidLeaveModal = function () {
-            paidLeaveModal.style.display = 'none';
-        }
-
-        function normalizeName(name) {
-            if (!name) return "";
-            // 全角スペースを半角に、連続するスペースを1つに、前後の空白を除去
-            return name.toString().replace(/　/g, " ").replace(/\s+/g, " ").trim();
-        }
-
-        /**
-         * 比較用に名前を正規化（全ての空白を除去し、英字は小文字化）
-         */
-        function canonicalize(str) {
-            if (!str) return "";
-            return str.toString().replace(/[\s　]+/g, "").toLowerCase();
-        }
-
-        // --- Conflict Check Helper ---
-        async function hasConflict(name, date, conflictTypes) {
-            const normName = normalizeName(name);
-            if (useFirebase && database) {
-                try {
-                    const snapshot = await database.ref('attendance').orderByChild('date').equalTo(date).once('value');
-                    const val = snapshot.val();
-                    if (!val) return false;
-
-                    return Object.values(val).some(r =>
-                        normalizeName(r.name) === normName && conflictTypes.includes(r.type)
-                    );
-                } catch (e) {
-                    console.warn("Conflict check warning", e);
-                    return false;
-                }
-            } else {
-                // LocalStorage
-                const records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
-                return records.some(r =>
-                    normalizeName(r.name) === normName &&
-                    r.date === date &&
-                    conflictTypes.includes(r.type)
-                );
-            }
-        }
-
-        async function saveRecord(record) {
-            if (useFirebase && database) {
-                try {
-                    await database.ref('attendance/' + record.id).set(record);
-                    showStatus('✓ 記録しました', 'success');
-                } catch (e) {
-                    showStatus('エラー: ' + e.message, 'error');
-                }
-            } else {
-                let records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
-                records.push(record);
-                localStorage.setItem('attendanceRecords', JSON.stringify(records));
-                showStatus('✓ 記録しました', 'success');
-                displayRecentRecords();
-            }
-        }
-
-        window.submitPaidLeave = async function () {
-            const date = document.getElementById('paidLeaveDate').value;
-            if (!date) return alert('日付を選択してください');
-
-            const locationSelect = document.getElementById('location');
-            const siteId = locationSelect.value;
-            if (!siteId) return alert('物件を選択してください');
-            const siteName = locationSelect.options[locationSelect.selectedIndex].text;
-
+        async function submitPaidLeave() {
             const name = document.getElementById('paidLeaveNameDisplay').textContent;
+            const date = document.getElementById('paidLeaveDate').value;
+            const siteId = document.getElementById('location').value;
+            if (!siteId) return alert('物件を選んでください（所属用）');
+            const siteName = document.getElementById('location').options[document.getElementById('location').selectedIndex].text;
 
-            // 選択されたシフトがあればその時間を入れる
-            const shiftSelect = document.getElementById('shiftTimeSelect');
-            const shiftVal = shiftSelect.value;
-            let startTime = '-';
-            let endTime = '-';
-            if (shiftVal && shiftVal !== 'custom') {
-                const parts = shiftVal.split(/[-~～]/);
-                if (parts.length >= 2) {
-                    startTime = normalizeTime(parts[0].trim());
-                    endTime = normalizeTime(parts[1].trim());
-                }
-            }
+            if (!confirm(`${date} に有給を申請しますか？`)) return;
 
-            if (!confirm(`${siteName}にて\n${date}\nこの内容で有給休暇を申請します。よろしいですか？`)) return;
-
-            const record = {
+            const data = {
                 id: Date.now(),
                 name: name,
                 date: date,
-                location: siteName, // 有給休暇ではなく実際の物件名を入れる
-                startTime: startTime,
-                endTime: endTime,
+                location: siteName,
                 type: 'paid_leave',
                 timestamp: new Date().toISOString(),
                 recordedTime: new Date().toLocaleString('ja-JP')
             };
 
-            // GASで先にバリデーションを行う
-            showStatus('判定中...', 'info');
-            if (GOOGLE_APPS_SCRIPT_URL) {
-                try {
-                    const result = await callGAS(record);
-                    if (result && result.success === false) {
-                        // 上限超えなどのエラー
-                        alert(result.message || '有給取得上限を超えているため、申請できません。');
-                        showStatus(result.message || '上限超過のため申請不可', 'error');
-                        return; // ここで終了（保存しない）
-                    }
-                } catch (e) {
-                    console.error("GAS error:", e);
-                    // 通信エラーの場合はユーザーに判断を仰ぐか、安全のために止める
-                    if (!confirm("サーバーとの通信に失敗しました。上限チェックをスキップして強制的に申請しますか？")) {
-                        showStatus('通信エラーのため中断', 'error');
-                        return;
-                    }
+            document.getElementById('status').textContent = '確認中...';
+            document.getElementById('status').className = 'status show';
+            try {
+                const res = await fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) });
+                const json = await res.json();
+                if (json.success === false) {
+                    showMessage(json.message, 'error');
+                    alert(json.message);
+                    return;
                 }
+            } catch (e) {
+                if (!confirm("通信エラー。強制記録しますか？")) return;
             }
 
-            // 成功した場合のみFirebase/LocalStorageに保存
-            await saveRecord(record);
-            closePaidLeaveModal();
-        };
-        function resetForm() {
-            // Reset selections but maybe keep location?
-            // For now reset all as per standard app behavior
-            document.getElementById('employeeName').value = '';
-            document.getElementById('shiftTimeSelect').value = '';
-            document.getElementById('customNameGroup').style.display = 'none';
-            document.getElementById('manualTimeInputs').style.display = 'none';
-            document.getElementById('startTime').value = '';
-            document.getElementById('endTime').value = '';
+            send(data);
+            document.getElementById('paidLeaveModal').style.display = 'none';
         }
 
-        function displayRecentRecords() {
-            const container = document.getElementById('recentRecords');
+        function send(data) {
+            showMessage('送信中...', 'success');
+            if (database) database.ref('attendance/' + data.id).set(data);
+            fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) })
+                .then(r => r.json())
+                .then(j => {
+                    if (j.limitExceeded) showMessage(j.message, 'error');
+                    else showMessage('記録しました', 'success');
+                })
+                .catch(e => showMessage('記録しました(GAS通信エラー)', 'success'));
 
-            if (useFirebase && database) {
-                database.ref('attendance').orderByChild('timestamp').limitToLast(10).once('value')
-                    .then(snapshot => {
-                        const records = [];
-                        snapshot.forEach(child => {
-                            records.push(child.val());
-                        });
-                        renderRecords(records.reverse());
-                    });
-            } else {
-                const records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
-                renderRecords(records.slice(-10).reverse());
+            let local = JSON.parse(localStorage.getItem('recs') || '[]');
+            local.push(data);
+            localStorage.setItem('recs', JSON.stringify(local));
+
+            if (data.type !== 'paid_leave') {
+                // reset form
             }
         }
 
-        function renderRecords(records) {
-            const container = document.getElementById('recentRecords');
+        function showMessage(txt, type) {
+            const el = document.getElementById('status');
+            el.textContent = txt;
+            el.className = `status ${type} show`;
+            setTimeout(() => el.classList.remove('show'), 3000);
+        }
 
-            if (records.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #999;">まだ記録がありません</p>';
-                return;
+        async function displayRecentRecords() {
+            const div = document.getElementById('recentRecords');
+            if (database) {
+                database.ref('attendance').orderByChild('timestamp').limitToLast(10).once('value').then(s => {
+                    const arr = []; s.forEach(c => arr.push(c.val()));
+                    renderRecs(arr.reverse());
+                });
             }
-
-            container.innerHTML = records.map(record => {
-                let typeLabel = '';
-                let typeClass = record.type;
-                if (record.type === 'checkin') typeLabel = '✓ 出勤';
-                else if (record.type === 'checkout') typeLabel = '→ 退勤';
-                else if (record.type === 'paid_leave') {
-                    typeLabel = '🏖️ 有給休暇';
-                    typeClass += ' paid'; // Add custom class for styling if needed
-                }
-
-                return `
-                <div class="record-item ${typeClass}" style="${record.type === 'paid_leave' ? 'border-left-color: #ff9966;' : ''}">
-                    <div class="record-header">
-                        <span class="record-type" style="${record.type === 'paid_leave' ? 'color: #ff5e62;' : ''}">
-                            ${typeLabel}
+        }
+        function renderRecs(list) {
+            const div = document.getElementById('recentRecords');
+            if (!list.length) { div.innerHTML = '<p style="text-align:center;color:#999">記録なし</p>'; return; }
+            div.innerHTML = list.map(r => `
+                <div class="record-item ${r.type}">
+                    <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                        <span style="color:${r.type === 'checkin' ? '#11998e' : r.type === 'checkout' ? '#ee0979' : '#ff6a00'}">
+                            ${r.type === 'checkin' ? '✓ 出勤' : r.type === 'checkout' ? '→ 退勤' : '🏖️ 有給'}
                         </span>
-                        <span class="record-time">${record.recordedTime}</span>
+                        <span style="font-size:0.8em; color:#666;">${r.recordedTime}</span>
                     </div>
-                    <div class="record-details">
-                        <strong>${record.name}</strong> - ${record.location}<br>
-                        ${record.type === 'paid_leave' ? `日付: ${record.date}` : `${record.startTime} ～ ${record.endTime}`}
+                    <div style="font-size:0.9em; margin-top:5px;">
+                        ${r.name} @ ${r.location}<br>
+                        ${r.type === 'paid_leave' ? r.date : (r.startTime + '〜' + r.endTime)}
                     </div>
                 </div>
-            `}).join('');
+            `).join('');
         }
 
-        function showStatus(message, type) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.textContent = message;
-            statusDiv.className = `status ${type} show`;
-            setTimeout(() => statusDiv.classList.remove('show'), 3000);
+        async function hasConflict(name, date, types) {
+            return false;
         }
 
-        // Initial display
-        displayRecentRecords();
+        async function checkPaidLeave() {
+            const name = getName();
+            const alertBox = document.getElementById('paidLeaveAlert');
+            const btn = document.getElementById('paidLeaveBtn');
+            if (!name || !database) return;
+            const norm = n => n.replace(/[\s　]/g, '');
+            const target = norm(name);
+            const today = new Date().toISOString().slice(0, 10);
 
-        // --- Load Master Data & Regions ---
-        let masterData = [];
-        let regions = {};
-
-        if (useFirebase && database) {
-            // Load Regions
-            database.ref('regions').on('value', (snapshot) => {
-                regions = snapshot.val() || {};
-                renderRegionModal();
-            });
-
-            // Load Master Data
-            database.ref('masterData').on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    masterData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+            database.ref('attendance').orderByChild('date').equalTo(today).once('value').then(snap => {
+                let taken = false;
+                snap.forEach(c => {
+                    const v = c.val();
+                    if (v.type === 'paid_leave' && norm(v.name) === target) taken = true;
+                });
+                if (taken) {
+                    alertBox.style.display = 'block';
+                    btn.style.opacity = '0.5';
+                    btn.disabled = true;
                 } else {
-                    masterData = [];
+                    alertBox.style.display = 'none';
+                    btn.style.opacity = '1';
+                    btn.disabled = false;
                 }
-                updateLocationSelect();
             });
-        }
-
-        // Region UI Logic
-        const regionFilterBtn = document.getElementById('regionFilterBtn');
-        const regionModal = document.getElementById('regionModal');
-        let currentFilterRegion = null;
-
-        regionFilterBtn.addEventListener('click', () => {
-            regionModal.style.display = 'flex';
-        });
-
-        function closeRegionModal() {
-            regionModal.style.display = 'none';
-        }
-
-        function renderRegionModal() {
-            const container = document.getElementById('regionList');
-            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-
-            // Add "All" option
-            let html = `
-                <button onclick="applyRegionFilter(null)" style="grid-column: span 4; padding: 10px; background: #667eea; color: white; border: none; border-radius: 8px; margin-bottom: 5px;">
-                    すべて表示
-                </button>
-            `;
-
-            html += alphabet.map(char => {
-                const name = regions[char] || char;
-                // Only show if there are sites? Or always?
-                const hasSites = masterData.some(s => s.region === char);
-                // Optional: opacity if no sites
-                return `
-                    <button onclick="confirmRegion('${char}', '${name}')" style="padding: 10px; border: 1px solid #eee; background: white; border-radius: 8px; font-weight: bold;">
-                        ${char}
-                    </button>
-                `;
-            }).join('');
-
-            container.innerHTML = html;
-        }
-
-        function confirmRegion(id, name) {
-            if (confirm(`${name} でよろしいですか？`)) {
-                applyRegionFilter(id);
-            }
-        }
-
-        function applyRegionFilter(id) {
-            currentFilterRegion = id;
-            document.getElementById('currentRegionLabel').textContent = id ? (regions[id] || id) : 'すべて';
-            updateLocationSelect();
-            closeRegionModal();
-        }
-
-        function updateLocationSelect() {
-            const select = document.getElementById('location');
-            const currentVal = select.value;
-
-            // Filter
-            let items = masterData;
-            if (currentFilterRegion) {
-                items = masterData.filter(s => s.region === currentFilterRegion);
-            }
-
-            if (items.length === 0) {
-                select.innerHTML = '<option value="">(選択可能な物件がありません)</option>';
-                return;
-            }
-
-            select.innerHTML = '<option value="">選択してください</option>' +
-                items.map(site => `<option value="${site.id}">${site.name}</option>`).join('');
-
-            // Try to restore value
-            // We use site.id as value now
-            if (currentVal && items.some(s => s.id === currentVal)) {
-                select.value = currentVal;
-            } else {
-                // If old value is invalid / empty, just leave as default
-            }
-
-            // Trigger change to populate employees even if empty
-            // But if we just loaded data, we might want to wait for user interaction?
-            // No, if there is a selected value (restored), we MUST populate.
-            if (select.value) {
-                onLocationChange();
-            } else {
-                // Clear children
-                document.getElementById('employeeName').innerHTML = '<option value="">先に物件を選択してください</option>';
-                document.getElementById('shiftTimeSelect').innerHTML = '<option value="">先に物件を選択してください</option>';
-            }
-        }
-
-
-        // Auto refresh if using Firebase
-        if (useFirebase && database) {
-            database.ref('attendance').on('child_added', displayRecentRecords);
         }
     </script>
 </body>
