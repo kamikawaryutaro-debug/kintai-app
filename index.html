@@ -521,21 +521,21 @@
             document.getElementById('customName').addEventListener('input', checkPaidLeaveEligibility);
 
             // ... (rest of the script)
+        </script>
 
-
-            <div class="card">
-                <h3 style="margin-bottom: 15px; color: #667eea;">📋 最近の記録</h3>
-                <div class="recent-records" id="recentRecords">
-                    <p style="text-align: center; color: #999;">まだ記録がありません</p>
-                </div>
+        <div class="card">
+            <h3 style="margin-bottom: 15px; color: #667eea;">📋 最近の記録</h3>
+            <div class="recent-records" id="recentRecords">
+                <p style="text-align: center; color: #999;">まだ記録がありません</p>
             </div>
-    </div >
+        </div>
+    </div>
 
     <!-- Admin link removed for security -->
 
-    </div >
+    </div>
 
-    < !--Paid Leave Modal-- >
+    <!-- Paid Leave Modal -->
     <div id="paidLeaveModal"
         style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
         <div
@@ -558,7 +558,7 @@
         </div>
     </div>
 
-    <!--Region Selection Modal-- >
+    <!-- Region Selection Modal -->
     <div id="regionModal"
         style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
         <div
@@ -798,20 +798,44 @@
         setupTimeFormat('endTime', null);
 
         // Pre-fill current time for manual input
-        const d_now = new Date();
-        document.getElementById('startTime').value = `${String(d_now.getHours()).padStart(2, '0')}:${String(d_now.getMinutes()).padStart(2, '0')}`;
+        function fillCurrentTime() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            return `${h}:${m}`;
+        }
 
-        // Event Listeners for buttons
-        document.getElementById('checkinBtn').onclick = () => recordAttendance('checkin');
-        document.getElementById('checkoutBtn').onclick = () => recordAttendance('checkout');
-        document.getElementById('paidLeaveBtn').onclick = () => {
+        // Update connection status helper
+        function updateConnectionStatus(connected) {
+            const statusDiv = document.getElementById('connectionStatus');
+            if (connected) {
+                statusDiv.textContent = '✓ クラウドに接続完了';
+                statusDiv.className = 'connection-status connected';
+            } else {
+                statusDiv.textContent = '⚠️ 接続していません（設定を確認してください）';
+                statusDiv.className = 'connection-status disconnected';
+            }
+        }
+
+        // --- Event Listeners for Attendance ---
+        document.getElementById('checkinBtn').addEventListener('click', () => recordAttendance('checkin'));
+        document.getElementById('checkoutBtn').addEventListener('click', () => recordAttendance('checkout'));
+
+        // Paid Leave Flow
+        document.getElementById('paidLeaveBtn').addEventListener('click', () => {
             const empVal = document.getElementById('employeeName').value;
             const custom = document.getElementById('customName').value;
-            if (!empVal || (empVal === 'custom' && !custom)) {
-                alert('誰の有給を申請しますか？\n先に氏名を選択してください。');
+            const name = empVal === 'custom' ? custom : empVal;
+
+            if (!name) {
+                alert('氏名を選択してください');
                 return;
             }
-            const name = empVal === 'custom' ? custom : empVal;
+
+            openPaidLeaveModal(name);
+        });
+
+        window.openPaidLeaveModal = function (name) {
             document.getElementById('paidLeaveNameDisplay').textContent = name;
             const d = new Date();
             const localToday = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -1212,7 +1236,7 @@
         if (useFirebase && database) {
             database.ref('attendance').on('child_added', displayRecentRecords);
         }
-        </script>
+    </script>
 </body>
 
 </html>
