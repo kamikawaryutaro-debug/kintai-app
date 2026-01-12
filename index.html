@@ -433,22 +433,109 @@
                         <span>有給</span>
                     </button>
                 </div>
+                <!-- Alert for duplicate paid leave -->
+                <div id="paidLeaveAlert"
+                    style="display: none; color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 0.9rem; text-align: center;">
+                    ⚠️ 本日は既に他の物件で有給を取得済みです。
+                </div>
             </form>
         </div>
 
-        <div class="card">
-            <h3 style="margin-bottom: 15px; color: #667eea;">📋 最近の記録</h3>
-            <div class="recent-records" id="recentRecords">
-                <p style="text-align: center; color: #999;">まだ記録がありません</p>
+        <script>
+            // ... (previous scripts) ...
+
+            // Check if paid leave is already taken for the day
+            async function checkPaidLeaveEligibility() {
+                const empVal = document.getElementById('employeeName').value;
+                const custom = document.getElementById('customName').value;
+                let name = empVal === 'custom' ? custom : empVal;
+
+                const btn = document.getElementById('paidLeaveBtn');
+                const alertBox = document.getElementById('paidLeaveAlert');
+
+                if (!name) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    alertBox.style.display = 'none';
+                    return;
+                }
+
+                // 名前の正規化（スペースをすべて削除して比較用にする）
+                // これにより "石黒真弓" と "石黒 真弓" を同一人物とみなす
+                // ただし、DB検索用には元の名前を使う必要があるが、
+                // hasConflict側で全件取得して正規化比較するロジックになっているか確認が必要。
+                // 既存の hasConflict は name をそのまま使ってフィルタリングしているため、
+                // ここでは hasConflict の呼び出し方を変えるのではなく、
+                // hasConflict 内部または新しいチェック関数で「正規化比較」を行うべき。
+                // 今回は安全のため、ここだけで完結する厳密なチェックロジックを実装します。
+
+                const d = new Date();
+                const localToday = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+                // 厳密な重複チェック（スペース無視）
+                const hasTaken = await checkDuplicateStrict(name, localToday);
+
+                if (hasTaken) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                    alertBox.style.display = 'block';
+                    alertBox.textContent = `⚠️ 本日、既に有給を取得済みです。`;
+                } else {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                    alertBox.style.display = 'none';
+                }
+            }
+
+            // 厳密な重複チェック関数（スペース無視）
+            async function checkDuplicateStrict(targetName, dateStr) {
+                if (!database || !useFirebase) return false; // オフライン時はチェック不可（またはローカルのみ）
+
+                const normalize = (n) => n ? n.replace(/[\s\u3000]+/g, '') : '';
+                const targetNorm = normalize(targetName);
+
+                try {
+                    const snapshot = await database.ref('attendance').once('value');
+                    const data = snapshot.val();
+                    if (!data) return false;
+
+                    for (const key in data) {
+                        const record = data[key];
+                        if (record.date === dateStr && record.type === 'paid_leave') {
+                            if (normalize(record.name) === targetNorm) {
+                                return true; // 重複あり
+                            }
+                        }
+                    }
+                    return false;
+                } catch (e) {
+                    console.error("Duplicate check error:", e);
+                    return false;
+                }
+            }
+
+            // Hook into name changes
+            document.getElementById('employeeName').addEventListener('change', checkPaidLeaveEligibility);
+            document.getElementById('customName').addEventListener('input', checkPaidLeaveEligibility);
+
+            // ... (rest of the script)
+
+
+            <div class="card">
+                <h3 style="margin-bottom: 15px; color: #667eea;">📋 最近の記録</h3>
+                <div class="recent-records" id="recentRecords">
+                    <p style="text-align: center; color: #999;">まだ記録がありません</p>
+                </div>
             </div>
-        </div>
-    </div>
+    </div >
 
     <!-- Admin link removed for security -->
 
-    </div>
+    </div >
 
-    <!-- Paid Leave Modal -->
+    < !--Paid Leave Modal-- >
     <div id="paidLeaveModal"
         style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
         <div
@@ -471,7 +558,7 @@
         </div>
     </div>
 
-    <!-- Region Selection Modal -->
+    <!--Region Selection Modal-- >
     <div id="regionModal"
         style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
         <div
@@ -509,24 +596,41 @@
         try {
             if (firebaseConfig.apiKey) {
                 firebase.initializeApp(firebaseConfig);
-                database = firebase.database();
                 useFirebase = true;
 
-                // Anonymous Auth
+                // Enable Anonymous Auth and monitor auth state
                 firebase.auth().signInAnonymously()
                     .then(() => {
-                        console.log("Signed in anonymously");
+                        console.log("Logged in anonymously");
+                        // Auth successful, now initialize database and monitor connection
+                        database = firebase.database();
+                        updateConnectionStatus(true);
+
+                        // Monitor Realtime Database connection status
+                        const connectedRef = database.ref('.info/connected');
+                        connectedRef.on('value', (snap) => {
+                            if (snap.val() === true) {
+                                console.log("Firebase Realtime Database connected.");
+                                updateConnectionStatus(true);
+                            } else {
+                                console.log("Firebase Realtime Database disconnected.");
+                                updateConnectionStatus(false);
+                            }
+                        });
                     })
                     .catch((error) => {
                         console.error("Auth Error", error);
+                        updateConnectionStatus(false);
+                        const statusDiv = document.getElementById('connectionStatus');
+                        statusDiv.textContent = `⚠️ 認証エラー: ${error.message} (Auth設定を確認してください)`;
                     });
 
-                document.getElementById('connectionStatus').className = 'connection-status connected';
-                document.getElementById('connectionStatus').textContent = '✓ クラウドに接続';
                 document.getElementById('setupNotice').style.display = 'none';
             }
-        } catch (error) {
-            console.log('Firebase未設定 - LocalStorageモードで動作');
+        } catch (e) {
+            console.error("Firebase init error", e);
+            document.getElementById('connectionStatus').textContent = "設定エラー: " + e.message;
+            document.getElementById('setupNotice').style.display = 'block'; // Show setup notice on init error
         }
 
         // Update current time
@@ -1108,7 +1212,7 @@
         if (useFirebase && database) {
             database.ref('attendance').on('child_added', displayRecentRecords);
         }
-    </script>
+        </script>
 </body>
 
 </html>
