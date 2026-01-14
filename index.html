@@ -309,7 +309,12 @@
                 regions = snap.val() || {};
                 renderRegionModal();
             });
-            database.ref('attendance').limitToLast(10).on('child_added', () => displayRecentRecords());
+            // Recent Records listener
+            database.ref('attendance').orderByChild('timestamp').limitToLast(10).on('value', snap => {
+                const arr = [];
+                snap.forEach(c => { arr.push(c.val()); });
+                renderRecs(arr.reverse());
+            });
         }
 
         function onLocationChange() {
@@ -398,7 +403,9 @@
             const name = getName();
             if (!name) return alert('氏名を選択してください');
             document.getElementById('paidLeaveNameDisplay').textContent = name;
-            document.getElementById('paidLeaveDate').value = new Date().toISOString().slice(0, 10);
+            const now = new Date();
+            const localToday = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+            document.getElementById('paidLeaveDate').value = localToday;
             document.getElementById('paidLeaveModal').style.display = 'flex';
         }
 
@@ -415,7 +422,8 @@
             const shift = document.getElementById('shiftTimeSelect').value;
             if (type !== 'paid_leave' && !shift) return alert('時間を選んでください');
 
-            const today = new Date().toISOString().slice(0, 10);
+            const now = new Date();
+            const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
             if (type !== 'paid_leave' && await hasConflict(name, today, ['paid_leave'])) {
                 return alert('本日は有給のため出勤できません');
             }
@@ -447,11 +455,16 @@
 
             if (!confirm(`${date} に有給を申請しますか？`)) return;
 
+            const startTime = document.getElementById('startTime').value || '-';
+            const endTime = document.getElementById('endTime').value || '-';
+
             const data = {
                 id: Date.now(),
                 name: name,
                 date: date,
                 location: siteName,
+                startTime: startTime,
+                endTime: endTime,
                 type: 'paid_leave',
                 timestamp: new Date().toISOString(),
                 recordedTime: new Date().toLocaleString('ja-JP')
@@ -463,8 +476,9 @@
                 const res = await fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) });
                 const json = await res.json();
                 if (json.success === false) {
-                    showMessage(json.message, 'error');
-                    alert(json.message);
+                    const errorMsg = json.message || '有給が取れません、担当者に連絡をしてください。';
+                    showMessage(errorMsg, 'error');
+                    alert(errorMsg);
                     return;
                 }
             } catch (e) {
@@ -541,7 +555,8 @@
             if (!name || !database) return;
             const norm = n => n.replace(/[\s　]/g, '');
             const target = norm(name);
-            const today = new Date().toISOString().slice(0, 10);
+            const now = new Date();
+            const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
 
             database.ref('attendance').orderByChild('date').equalTo(today).once('value').then(snap => {
                 let taken = false;
