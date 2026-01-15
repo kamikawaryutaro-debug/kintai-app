@@ -414,16 +414,43 @@
             return val === 'custom' ? document.getElementById('customName').value : val;
         }
 
+        function normalizeName(name) {
+            if (!name) return "";
+            return name.toString().replace(/[\s　]+/g, "");
+        }
+
+        async function callGAS(payload) {
+            if (!GOOGLE_APPS_SCRIPT_URL) return { success: false, message: 'GAS URL is not set' };
+            try {
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error('Network response was not ok');
+                const result = await response.json();
+                if (result.limitExceeded) {
+                    alert(result.message || '【警告】一週間の勤怠上限を超えています。管理者に通知されました。');
+                    showMessage(result.message || '【警告】上限超過', 'error');
+                }
+                return result;
+            } catch (e) {
+                console.warn("GAS callback issue:", e);
+                return { success: false, message: e.message };
+            }
+        }
+
         async function record(type) {
             const siteId = document.getElementById('location').value;
             if (!siteId) return alert('物件を選んでください');
-            const name = getName();
+            const name = normalizeName(getName());
             if (!name) return alert('氏名が必要です');
             const shift = document.getElementById('shiftTimeSelect').value;
             if (type !== 'paid_leave' && !shift) return alert('時間を選んでください');
 
             const now = new Date();
             const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+
+            // 有給競合チェック (簡易)
             if (type !== 'paid_leave' && await hasConflict(name, today, ['paid_leave'])) {
                 return alert('本日は有給のため出勤できません');
             }
@@ -443,11 +470,25 @@
                 recordedTime: new Date().toLocaleString('ja-JP')
             };
 
-            send(data);
+            // 1. Firebaseへ保存 (GASが参照するため先に保存)
+            if (database) {
+                try {
+                    await database.ref('attendance/' + data.id).set(data);
+                } catch (e) { console.error("Firebase error", e); }
+            }
+
+            // 2. LocalStorage
+            let local = JSON.parse(localStorage.getItem('recs') || '[]');
+            local.push(data);
+            localStorage.setItem('recs', JSON.stringify(local));
+
+            // 3. GASへ送信
+            showMessage('送信中...', 'success');
+            await callGAS(data);
         }
 
         async function submitPaidLeave() {
-            const name = document.getElementById('paidLeaveNameDisplay').textContent;
+            const name = normalizeName(document.getElementById('paidLeaveNameDisplay').textContent);
             const date = document.getElementById('paidLeaveDate').value;
             const siteId = document.getElementById('location').value;
             if (!siteId) return alert('物件を選んでください（所属用）');
@@ -470,43 +511,27 @@
                 recordedTime: new Date().toLocaleString('ja-JP')
             };
 
-            document.getElementById('status').textContent = '確認中...';
-            document.getElementById('status').className = 'status show';
+            showMessage('判定中...', 'success');
             try {
-                const res = await fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) });
-                const json = await res.json();
-                if (json.success === false) {
-                    const errorMsg = json.message || '有給が取れません、担当者に連絡をしてください。';
-                    showMessage(errorMsg, 'error');
+                const result = await callGAS(data);
+                if (result && result.success === false) {
+                    const errorMsg = result.message || '有給が取れません、担当者に連絡をしてください。';
                     alert(errorMsg);
-                    return;
+                    showMessage(errorMsg, 'error');
+                    return; // 保存しない
                 }
             } catch (e) {
                 if (!confirm("通信エラー。強制記録しますか？")) return;
             }
 
-            send(data);
-            document.getElementById('paidLeaveModal').style.display = 'none';
-        }
-
-        function send(data) {
-            showMessage('送信中...', 'success');
-            if (database) database.ref('attendance/' + data.id).set(data);
-            fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) })
-                .then(r => r.json())
-                .then(j => {
-                    if (j.limitExceeded) showMessage(j.message, 'error');
-                    else showMessage('記録しました', 'success');
-                })
-                .catch(e => showMessage('記録しました(GAS通信エラー)', 'success'));
-
+            // 成功時のみFirebase/Localに保存
+            if (database) await database.ref('attendance/' + data.id).set(data);
             let local = JSON.parse(localStorage.getItem('recs') || '[]');
             local.push(data);
             localStorage.setItem('recs', JSON.stringify(local));
 
-            if (data.type !== 'paid_leave') {
-                // reset form
-            }
+            showMessage('記録しました', 'success');
+            document.getElementById('paidLeaveModal').style.display = 'none';
         }
 
         function showMessage(txt, type) {
@@ -553,7 +578,7 @@
             const alertBox = document.getElementById('paidLeaveAlert');
             const btn = document.getElementById('paidLeaveBtn');
             if (!name || !database) return;
-            const norm = n => n.replace(/[\s　]/g, '');
+            const norm = n => n.toString().replace(/[\s　]+/g, "");
             const target = norm(name);
             const now = new Date();
             const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
@@ -576,6 +601,8 @@
             });
         }
     </script>
+    <small style="position:fixed; bottom:5px; left:5px; opacity:0.5; font-size:10px;">v2.5 (Final Fix:
+        2026/01/15)</small>
 </body>
 
 </html>
