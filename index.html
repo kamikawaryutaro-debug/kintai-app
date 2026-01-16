@@ -484,7 +484,14 @@
 
             // 3. GASへ送信
             showMessage('送信中...', 'success');
-            await callGAS(data);
+            const result = await callGAS(data);
+            if (result && result.success) {
+                alert(result.message || '記録しました');
+                showMessage('記録しました', 'success');
+            } else if (result) {
+                alert('エラー: ' + (result.message || '不明なエラー'));
+                showMessage('エラー', 'error');
+            }
         }
 
         async function submitPaidLeave() {
