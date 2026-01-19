@@ -376,9 +376,7 @@
 
         document.getElementById('employeeName').onchange = (e) => {
             document.getElementById('customNameGroup').style.display = e.target.value === 'custom' ? 'block' : 'none';
-            checkPaidLeave();
         };
-        document.getElementById('customName').oninput = checkPaidLeave;
 
         document.getElementById('shiftTimeSelect').onchange = (e) => {
             const manual = document.getElementById('manualTimeInputs');
@@ -580,33 +578,7 @@
             return false;
         }
 
-        async function checkPaidLeave() {
-            const name = getName();
-            const alertBox = document.getElementById('paidLeaveAlert');
-            const btn = document.getElementById('paidLeaveBtn');
-            if (!name || !database) return;
-            const norm = n => n.toString().replace(/[\s　]+/g, "");
-            const target = norm(name);
-            const now = new Date();
-            const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-
-            database.ref('attendance').orderByChild('date').equalTo(today).once('value').then(snap => {
-                let taken = false;
-                snap.forEach(c => {
-                    const v = c.val();
-                    if (v.type === 'paid_leave' && norm(v.name) === target) taken = true;
-                });
-                if (taken) {
-                    alertBox.style.display = 'block';
-                    btn.style.opacity = '0.5';
-                    btn.disabled = true;
-                } else {
-                    alertBox.style.display = 'none';
-                    btn.style.opacity = '1';
-                    btn.disabled = false;
-                }
-            });
-        }
+        // checkPaidLeave関数は削除 - サーバー側で物件を考慮した重複チェックを実施
     </script>
     <small style="position:fixed; bottom:5px; left:5px; opacity:0.5; font-size:10px;">v2.5 (Final Fix:
         2026/01/15)</small>
