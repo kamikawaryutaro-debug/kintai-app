@@ -456,6 +456,12 @@
             const siteName = document.getElementById('location').options[document.getElementById('location').selectedIndex].text;
             if (!confirm(`${siteName} で ${type === 'checkin' ? '出勤' : '退勤'} しますか？`)) return;
 
+            // ボタンの無効化（2重送信防止）
+            const checkinBtn = document.getElementById('checkinBtn');
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            const paidLeaveBtn = document.getElementById('paidLeaveBtn');
+            [checkinBtn, checkoutBtn, paidLeaveBtn].forEach(btn => btn.disabled = true);
+
             const data = {
                 id: Date.now(),
                 name: name,
@@ -483,6 +489,10 @@
             // 3. GASへ送信
             showMessage('送信中...', 'success');
             const result = await callGAS(data);
+
+            // ボタンの有効化
+            [checkinBtn, checkoutBtn, paidLeaveBtn].forEach(btn => btn.disabled = false);
+
             if (result && result.success) {
                 alert(result.message || '記録しました');
                 showMessage('記録しました', 'success');
@@ -500,6 +510,12 @@
             const siteName = document.getElementById('location').options[document.getElementById('location').selectedIndex].text;
 
             if (!confirm(`${date} に有給を申請しますか？`)) return;
+
+            // ボタンの無効化
+            const checkinBtn = document.getElementById('checkinBtn');
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            const paidLeaveBtn = document.getElementById('paidLeaveBtn');
+            [checkinBtn, checkoutBtn, paidLeaveBtn].forEach(btn => btn.disabled = true);
 
             const startTime = document.getElementById('startTime').value || '-';
             const endTime = document.getElementById('endTime').value || '-';
@@ -523,10 +539,16 @@
                     const errorMsg = result.message || '有給が取れません、担当者に連絡をしてください。';
                     alert(errorMsg);
                     showMessage(errorMsg, 'error');
+                    // ボタンの有効化
+                    [checkinBtn, checkoutBtn, paidLeaveBtn].forEach(btn => btn.disabled = false);
                     return; // 保存しない
                 }
             } catch (e) {
-                if (!confirm("通信エラー。強制記録しますか？")) return;
+                if (!confirm("通信エラー。強制記録しますか？")) {
+                    // ボタンの有効化
+                    [checkinBtn, checkoutBtn, paidLeaveBtn].forEach(btn => btn.disabled = false);
+                    return;
+                }
             }
 
             // 成功時のみFirebase/Localに保存
@@ -537,6 +559,8 @@
 
             showMessage('記録しました', 'success');
             document.getElementById('paidLeaveModal').style.display = 'none';
+            // ボタンの有効化
+            [checkinBtn, checkoutBtn, paidLeaveBtn].forEach(btn => btn.disabled = false);
         }
 
         function showMessage(txt, type) {
