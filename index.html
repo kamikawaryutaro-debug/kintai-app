@@ -796,7 +796,7 @@
                 const result = await response.json();
                 if (result.limitExceeded) {
                     // 警告メッセージをアラートで強調表示（ユーザー要望）
-                    alert(result.message || '【警告】一週間の勤怠上限を超えています。管理者に通知されました。');
+                    alert(result.message || '【警告】直近の勤務実績に基づく有給取得基準を超えています。\n取得については担当者へご相談ください。');
                     showStatus(result.message || '【警告】上限超過', 'error');
                 }
                 return result;
@@ -900,7 +900,7 @@
                     const result = await callGAS(record);
                     if (result && result.success === false) {
                         // 上限超えなどのエラー
-                        const errorMsg = result.message || '有給が取れません、担当者に連絡をしてください。';
+                        const errorMsg = result.message || '直近の勤務実績に基づく有給取得基準を超えています。\n取得については担当者へご相談ください。';
                         alert(errorMsg);
                         showStatus(errorMsg, 'error');
                         return; // ここで終了（保存しない）
@@ -960,7 +960,18 @@
                 return;
             }
 
-            container.innerHTML = records.map(record => {
+            // --- 2重表示防止ロジック (Adminと同様) ---
+            const seen = new Set();
+            const uniqueRecords = [];
+            for (const record of records) {
+                const key = `${record.name}-${record.date}-${record.location}-${record.startTime}-${record.endTime}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueRecords.push(record);
+                }
+            }
+
+            container.innerHTML = uniqueRecords.map(record => {
                 let typeLabel = '';
                 let typeClass = record.type;
                 if (record.type === 'checkin') typeLabel = '✓ 出勤';
@@ -976,7 +987,7 @@
                         <span class="record-type" style="${record.type === 'paid_leave' ? 'color: #ff5e62;' : ''}">
                             ${typeLabel}
                         </span>
-                        <span class="record-time">${record.recordedTime}</span>
+                        <span class="record-time">${record.recordedTime || ''}</span>
                     </div>
                     <div class="record-details">
                         <strong>${record.name}</strong> - ${record.location}<br>
